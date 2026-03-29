@@ -1,5 +1,5 @@
 // ⚠️ CHANGE THIS URL WHEN DEPLOYING TO RAILWAY
-const API_URL = 'https://studioweb-production.up.railway.app'; 
+const API_URL = 'https://studioweb-production.up.railway.app/api'; 
 // Example: 'https://my-backend.up.railway.app/api'
 
 let currentUser, currentToken;
