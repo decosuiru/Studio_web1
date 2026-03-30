@@ -34,11 +34,10 @@ async function safeFetch(url, options = {}) {
     } catch (err) { throw err; }
 }
 
-// --- AUTO LOGOUT & AUTH ---
 function resetInactivityTimer() {
     clearTimeout(inactivityTimer);
     if (localStorage.getItem('token')) {
-        inactivityTimer = setTimeout(logout, 15 * 60 * 1000); // 15 Minutes
+        inactivityTimer = setTimeout(logout, 15 * 60 * 1000); 
     }
 }
 document.onmousemove = resetInactivityTimer;
@@ -59,10 +58,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     } catch (err) { showAlert(err.message, true); }
 });
 
-function logout() { 
-    localStorage.clear(); 
-    window.location.reload(); 
-}
+function logout() { localStorage.clear(); window.location.reload(); }
 
 function initApp() {
     currentToken = localStorage.getItem('token');
@@ -72,9 +68,11 @@ function initApp() {
     document.getElementById('login-view').classList.add('hidden');
     document.getElementById('app-view').classList.remove('hidden');
     
+    // Admin only pages (Accounts & Finance summary)
     if (currentUser.role !== 'Admin') {
         document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
     }
+    
     initRealTime();
     showSection('calendar');
     resetInactivityTimer();
@@ -83,27 +81,13 @@ function initApp() {
 function initRealTime() {
     if (!socket) {
         socket = io(SOCKET_URL);
-        socket.on('connect', () => {
-            const statusEl = document.getElementById('sync-status');
-            if(statusEl) statusEl.style.display = 'block';
-        });
-        socket.on('disconnect', () => {
-            const statusEl = document.getElementById('sync-status');
-            if(statusEl) statusEl.style.display = 'none';
-        });
-        
-        socket.on('bookings_changed', async () => {
-            await fetchAllBookings();
-            refreshActiveSection();
-        });
-        socket.on('finance_changed', async () => {
-            await fetchPettyCash(); // Fetches for both Admin and Staff now
-            refreshActiveSection();
-        });
+        socket.on('connect', () => { const el = document.getElementById('sync-status'); if(el) el.style.display = 'block'; });
+        socket.on('disconnect', () => { const el = document.getElementById('sync-status'); if(el) el.style.display = 'none'; });
+        socket.on('bookings_changed', async () => { await fetchAllBookings(); refreshActiveSection(); });
+        socket.on('finance_changed', async () => { await fetchPettyCash(); refreshActiveSection(); });
     }
 }
 
-// --- NAVIGATION & FETCH ---
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('sidebar-overlay').classList.toggle('active');
@@ -131,9 +115,9 @@ function refreshActiveSection() {
     const active = activeEl.id.replace('-section', '');
     if (active === 'calendar') renderCalendar();
     if (active === 'bookings') renderListTable();
-    if (active === 'finance' && currentUser && currentUser.role === 'Admin') renderFinanceTable();
+    if (active === 'finance') renderFinanceTable();
     if (active === 'pettycash') renderPettyCash();
-    if (active === 'accounts' && currentUser && currentUser.role === 'Admin') renderAccountsTable();
+    if (active === 'accounts') renderAccountsTable();
 }
 
 async function fetchAllBookings() {
@@ -143,55 +127,55 @@ async function fetchPettyCash() {
     try { allPettyCash = await safeFetch(`${API_URL}/petty_cash`, { headers: getHeaders() }); } catch (err) { console.error(err); }
 }
 
-// --- RENDERING CALENDAR & TABLES ---
+// --- RENDERING CALENDAR ---
 function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
     if(!calendarEl) return;
     const isMobile = window.innerWidth <= 768;
 
     const events = allBookings.map(b => ({
-        id: b.id, title: `${b.client_name} (${b.customer_type})`, 
+        id: b.id, title: b.client_name, 
         start: `${b.date.split('T')[0]}T${b.start_time}`, end: `${b.date.split('T')[0]}T${b.end_time}`,
-        backgroundColor: b.status === 'Paid' ? '#10B981' : (b.status === 'Partial' ? '#F59E0B' : '#EF4444'),
+        backgroundColor: isMobile ? '#D1D5DB' : (b.status === 'Paid' ? '#10B981' : (b.status === 'Partial' ? '#F59E0B' : '#EF4444')),
         extendedProps: b
     }));
 
     if (fullCalendarInstance) fullCalendarInstance.destroy();
     fullCalendarInstance = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth', // Both use Month to show the dots perfectly
+        initialView: 'dayGridMonth', 
         height: isMobile ? 'auto' : '100%', 
-        stickyHeaderDates: true,
-        headerToolbar: isMobile 
-            ? { left: 'title', center: '', right: 'prev,next' } 
-            : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+        contentHeight: 'auto',
+        headerToolbar: isMobile ? { left: '', center: 'title', right: '' } : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
         editable: false, 
         events: events,
         eventClick: (info) => {
-            // Desktop opens modal immediately. Mobile clicks the DATE instead to open list.
             if(!isMobile) openDetailModal(info.event.extendedProps);
         },
         dateClick: (info) => { 
             if (isMobile) {
-                // Highlight tapped background
-                document.querySelectorAll('.fc-daygrid-day').forEach(el => el.style.backgroundColor = '');
-                info.dayEl.style.backgroundColor = '#F3F4F6';
+                // iPhone Calendar styling logic
+                document.querySelectorAll('.selected-date').forEach(el => el.classList.remove('selected-date'));
+                info.dayEl.classList.add('selected-date');
 
                 const dayBookings = allBookings.filter(b => b.date.split('T')[0] === info.dateStr);
                 const listEl = document.getElementById('mobile-event-list');
                 const itemsEl = document.getElementById('mobile-event-items');
                 
-                document.getElementById('mobile-event-date').textContent = new Date(info.dateStr).toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'});
+                // Format "November 14, 2024"
+                document.getElementById('mobile-event-date').textContent = new Date(info.dateStr).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
                 listEl.classList.remove('hidden');
                 
                 if (dayBookings.length === 0) {
-                    itemsEl.innerHTML = '<p style="color: #9CA3AF; text-align: center; margin-top: 10px;">No events today</p>';
+                    itemsEl.innerHTML = '<p style="color: #9CA3AF; text-align: center; margin-top: 20px;">No Events</p>';
                 } else {
                     itemsEl.innerHTML = dayBookings.map(b => `
                         <div class="mobile-event-card" onclick="openDetailModalById(${b.id})">
-                            <div class="time">${b.start_time.substring(0,5)}</div>
-                            <div class="details">
-                                <strong>${b.client_name}</strong>
-                                <span>${b.customer_type} | ${b.status}</span>
+                            <div class="left-info">
+                                <span class="time">${b.start_time.substring(0,5)}</span>
+                                <span class="client">${b.client_name}</span>
+                            </div>
+                            <div>
+                                <span class="status-pill status-${b.status}">${b.status}</span>
                             </div>
                         </div>
                     `).join('');
@@ -210,11 +194,11 @@ function renderListTable() {
     tbody.innerHTML = allBookings.map(b => `
         <tr>
             <td>${b.date.split('T')[0]}</td>
-            <td>${b.start_time.substring(0,5)}</td>
+            <td class="hide-mobile">${b.start_time.substring(0,5)}</td>
             <td><strong>${b.client_name}</strong></td>
-            <td>${b.customer_type}</td>
-            <td class="text-green">${formatIDR(b.dp_paid)}</td>
-            <td><span class="status-pill status-${b.status}">${b.status}</span></td>
+            <td class="hide-mobile">${b.customer_type}</td>
+            <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
+            <td class="hide-mobile"><span class="status-pill status-${b.status}">${b.status}</span></td>
             <td><button class="primary-btn" style="padding: 6px 12px" onclick="openDetailModalById(${b.id})">Detail</button></td>
         </tr>
     `).join('');
@@ -223,30 +207,25 @@ function renderListTable() {
 function renderFinanceTable() {
     let gross = 0, dp = 0, remain = 0;
     const tbody = document.querySelector('#finance-table tbody');
-    let tableHTML = '';
-
-    allBookings.forEach(b => { 
-        gross += parseFloat(b.total_price); 
-        dp += parseFloat(b.dp_paid); 
-        remain += parseFloat(b.remaining_payment); 
-        
-        tableHTML += `
+    if(!tbody) return;
+    
+    tbody.innerHTML = allBookings.map(b => { 
+        gross += parseFloat(b.total_price); dp += parseFloat(b.dp_paid); remain += parseFloat(b.remaining_payment); 
+        return `
             <tr>
                 <td>${b.date.split('T')[0]}</td>
                 <td>
                     <strong>${b.client_name}</strong><br>
-                    <span style="font-size: 12px; color: #666;">📞 ${b.client_phone}</span><br>
-                    <span style="font-size: 12px; color: #888;">${b.client_email ? '✉️ ' + b.client_email : ''}</span>
+                    <span style="font-size: 12px; color: #666;">📞 ${b.client_phone}</span>
                 </td>
-                <td>${formatIDR(b.total_price)}</td>
-                <td class="text-green">${formatIDR(b.dp_paid)}</td>
-                <td class="text-red"><strong>${formatIDR(b.remaining_payment)}</strong></td>
-                <td><span class="status-pill status-${b.status}">${b.status}</span></td>
+                <td class="hide-mobile">${formatIDR(b.total_price)}</td>
+                <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
+                <td class="hide-mobile text-red"><strong>${formatIDR(b.remaining_payment)}</strong></td>
+                <td><button class="primary-btn" style="padding: 6px 12px" onclick="openDetailModalById(${b.id})">Detail</button></td>
             </tr>
         `;
-    });
+    }).join('');
 
-    if (tbody) tbody.innerHTML = tableHTML;
     document.getElementById('fin-income').textContent = formatIDR(gross);
     document.getElementById('fin-dp').textContent = formatIDR(dp);
     document.getElementById('fin-remain').textContent = formatIDR(remain);
@@ -262,15 +241,15 @@ function renderPettyCash() {
         return `<tr>
             <td>${t.date.split('T')[0]}</td>
             <td>${t.description}</td>
-            <td><span class="role-pill" style="background:${t.type==='IN'?'#D1FAE5':'#FEE2E2'}; color:${t.type==='IN'?'#065F46':'#991B1B'}">${t.type}</span></td>
+            <td class="hide-mobile"><span class="role-pill" style="background:${t.type==='IN'?'#D1FAE5':'#FEE2E2'}; color:${t.type==='IN'?'#065F46':'#991B1B'}">${t.type}</span></td>
             <td class="${t.type==='IN'?'text-green':'text-red'}">${t.type==='IN'?'+':'-'} ${formatIDR(amt)}</td>
             <td><button class="del-btn" style="padding: 6px 12px" onclick="deletePettyCash(${t.id})">Del</button></td>
         </tr>`;
     }).join('');
     
-    const pIn = document.getElementById('pc-in'); if(pIn) pIn.textContent = formatIDR(totalIn);
-    const pOut = document.getElementById('pc-out'); if(pOut) pOut.textContent = formatIDR(totalOut);
-    const pBal = document.getElementById('pc-balance'); if(pBal) pBal.textContent = formatIDR(totalIn - totalOut);
+    document.getElementById('pc-in').textContent = formatIDR(totalIn);
+    document.getElementById('pc-out').textContent = formatIDR(totalOut);
+    document.getElementById('pc-balance').textContent = formatIDR(totalIn - totalOut);
 }
 
 // --- MODALS ---
@@ -280,8 +259,7 @@ function openDetailModal(b) {
     document.getElementById('det_name').textContent = b.client_name;
     document.getElementById('det_type').textContent = b.customer_type;
     document.getElementById('det_phone').textContent = b.client_phone;
-    // CRASH FIX: Email was previously missing from HTML. It is now completely safe.
-    document.getElementById('det_email').textContent = b.client_email || "N/A";
+    document.getElementById('det_email').textContent = b.client_email || "N/A"; // Crash fix handled here safely
     document.getElementById('det_date').textContent = b.date.split('T')[0];
     document.getElementById('det_time').textContent = `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`;
     document.getElementById('det_total').textContent = formatIDR(b.total_price);
@@ -296,6 +274,12 @@ function openDetailModal(b) {
 }
 
 function closeDetailModal() { document.getElementById('detail-modal').classList.add('hidden'); }
+
+function openPcModal() {
+    document.getElementById('pc-form').reset();
+    document.getElementById('pc-modal').classList.remove('hidden');
+}
+function closePcModal() { document.getElementById('pc-modal').classList.add('hidden'); }
 
 function calcRemaining() {
     const p = parseFloat(document.getElementById('total_price').value) || 0;
@@ -330,7 +314,7 @@ function openEditModal(b) {
 
 function closeBookingModal() { document.getElementById('booking-modal').classList.add('hidden'); }
 
-// --- API SUBMISSIONS ---
+// --- FORMS & API ---
 const bookingForm = document.getElementById('booking-form');
 if(bookingForm) {
     bookingForm.addEventListener('submit', async (e) => {
@@ -346,8 +330,6 @@ if(bookingForm) {
             total_price: parseFloat(document.getElementById('total_price').value) || 0,
             dp_paid: parseFloat(document.getElementById('dp_paid').value) || 0
         };
-        if(!payload.customer_type) return showAlert("Please select Customer Type", true);
-
         const bookingId = document.getElementById('booking_id').value;
         try {
             await safeFetch(bookingId ? `${API_URL}/bookings/${bookingId}` : `${API_URL}/bookings`, { 
@@ -383,7 +365,7 @@ if(pcForm) {
                 }) 
             });
             showAlert("Transaction added!");
-            document.getElementById('pc-form').reset();
+            closePcModal();
         } catch (err) { showAlert(err.message, true); }
     });
 }
@@ -403,7 +385,7 @@ async function renderAccountsTable() {
         if(!tbody) return;
         tbody.innerHTML = users.map(u => `
             <tr><td><strong>${u.email}</strong></td><td><span class="role-pill">${u.role}</span></td>
-            <td>${new Date(u.created_at).toLocaleDateString()}</td>
+            <td class="hide-mobile">${new Date(u.created_at).toLocaleDateString()}</td>
             <td><button class="del-btn" style="padding:6px 12px" onclick="deleteAccount(${u.id})">Del</button></td></tr>
         `).join('');
     } catch (err) { console.error(err); }
@@ -427,10 +409,7 @@ async function deleteAccount(id) {
     try { await safeFetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: getHeaders() }); renderAccountsTable(); } catch (err) { showAlert(err.message, true); }
 }
 
-// --- INITIALIZE APP ---
 window.onload = () => { 
     resetInactivityTimer();
-    if(localStorage.getItem('token')) {
-        initApp(); 
-    }
+    if(localStorage.getItem('token')) { initApp(); }
 };
