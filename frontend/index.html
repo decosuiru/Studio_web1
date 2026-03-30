@@ -50,7 +50,7 @@
 
             <!-- SECTIONS -->
             <section id="calendar-section" class="section active">
-                <div class="table-container calendar-wrapper">
+                <div class="calendar-wrapper">
                     <div id="calendar"></div>
                     <!-- iOS-style Mobile Event List -->
                     <div id="mobile-event-list" class="mobile-only-list hidden mt-15">
@@ -63,7 +63,7 @@
             <section id="bookings-section" class="section hidden">
                 <div class="table-container">
                     <table id="bookings-table">
-                        <thead><tr><th>Date</th><th>Time</th><th>Client</th><th>Type</th><th>Total Received</th><th>Status</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Date</th><th class="hide-mobile">Time</th><th>Client</th><th class="hide-mobile">Type</th><th class="hide-mobile">Received</th><th class="hide-mobile">Status</th><th>Action</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -71,14 +71,14 @@
 
             <section id="finance-section" class="section hidden">
                 <div class="cards-grid">
-                    <div class="card"><h3>Total Gross Booking</h3><p class="amount" id="fin-income">Rp 0</p></div>
+                    <div class="card"><h3>Total Gross</h3><p class="amount" id="fin-income">Rp 0</p></div>
                     <div class="card bg-green"><h3>Total Received</h3><p class="amount text-green" id="fin-dp">Rp 0</p></div>
                     <div class="card bg-red"><h3>Unpaid Balance</h3><p class="amount text-red" id="fin-remain">Rp 0</p></div>
                 </div>
                 <h3 class="mt-20 mb-15">Client Transactions</h3>
                 <div class="table-container">
                     <table id="finance-table">
-                        <thead><tr><th>Date</th><th>Client Info</th><th>Total Price</th><th>Total Received</th><th>Remaining</th><th>Status</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Client Info</th><th class="hide-mobile">Total</th><th class="hide-mobile">Received</th><th class="hide-mobile">Remaining</th><th>Action</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -86,36 +86,25 @@
 
             <section id="pettycash-section" class="section hidden">
                 <div class="cards-grid mb-20">
-                    <div class="card bg-green"><h3>Total Cash In</h3><p class="amount text-green" id="pc-in">Rp 0</p></div>
-                    <div class="card bg-red"><h3>Total Cash Out</h3><p class="amount text-red" id="pc-out">Rp 0</p></div>
-                    <div class="card"><h3>Current Balance</h3><p class="amount" id="pc-balance">Rp 0</p></div>
+                    <div class="card bg-green"><h3>Cash In</h3><p class="amount text-green" id="pc-in">Rp 0</p></div>
+                    <div class="card bg-red"><h3>Cash Out</h3><p class="amount text-red" id="pc-out">Rp 0</p></div>
+                    <div class="card"><h3>Balance</h3><p class="amount" id="pc-balance">Rp 0</p></div>
                 </div>
-                <div class="cards-grid" style="grid-template-columns: 1fr 2fr;">
-                    <div class="card text-left">
-                        <h3>+ Add Transaction</h3>
-                        <form id="pc-form" class="mt-15">
-                            <input type="date" id="pc_date" required>
-                            <input type="text" id="pc_desc" placeholder="Description" required>
-                            <select id="pc_type" required>
-                                <option value="IN">Cash IN (+)</option>
-                                <option value="OUT">Cash OUT (-)</option>
-                            </select>
-                            <input type="number" id="pc_amount" placeholder="Amount (Rp)" required>
-                            <button type="submit" class="primary-btn w-full">Save</button>
-                        </form>
-                    </div>
-                    <div class="table-container">
-                        <table id="pc-table">
-                            <thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Actions</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+                
+                <!-- [NEW] Mobile-friendly Add Button -->
+                <button class="primary-btn shadow-btn w-full mb-15" onclick="openPcModal()">+ Add Transaction</button>
+
+                <div class="table-container">
+                    <table id="pc-table">
+                        <thead><tr><th>Date</th><th>Description</th><th class="hide-mobile">Type</th><th>Amount</th><th>Action</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </section>
 
             <section id="accounts-section" class="section hidden">
                 <div class="cards-grid" style="grid-template-columns: 1fr 2fr;">
-                    <div class="card text-left">
+                    <div class="card text-left hide-mobile">
                         <h3>+ Add Account</h3>
                         <form id="account-form" class="mt-15">
                             <select id="acc_role" required><option value="Admin">Admin</option><option value="Staff">Staff</option></select>
@@ -126,13 +115,33 @@
                     </div>
                     <div class="table-container">
                         <table id="accounts-table">
-                            <thead><tr><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
+                            <thead><tr><th>Email</th><th>Role</th><th class="hide-mobile">Created</th><th>Action</th></tr></thead>
                             <tbody></tbody>
                         </table>
                     </div>
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- PETTY CASH MODAL -->
+    <div id="pc-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Add Petty Cash</h3>
+            <form id="pc-form" class="mt-15">
+                <input type="date" id="pc_date" required>
+                <input type="text" id="pc_desc" placeholder="Description" required>
+                <select id="pc_type" required>
+                    <option value="IN">Cash IN (+)</option>
+                    <option value="OUT">Cash OUT (-)</option>
+                </select>
+                <input type="number" id="pc_amount" placeholder="Amount (Rp)" required>
+                <div class="modal-actions mt-20">
+                    <button type="button" class="cancel-btn" onclick="closePcModal()">Cancel</button>
+                    <button type="submit" class="primary-btn">Save</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- DETAIL MODAL -->
@@ -165,14 +174,12 @@
             <h3 id="modal-title">New Booking</h3>
             <form id="booking-form" class="mt-15">
                 <input type="hidden" id="booking_id">
-                <div class="form-group">
-                    <select id="customer_type" required>
-                        <option value="" disabled selected>Select Customer Type *</option>
-                        <option value="Regular">Regular</option>
-                        <option value="Vendor">Vendor</option>
-                        <option value="Management">Management</option>
-                    </select>
-                </div>
+                <select id="customer_type" required>
+                    <option value="" disabled selected>Select Customer Type *</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Vendor">Vendor</option>
+                    <option value="Management">Management</option>
+                </select>
                 <input type="text" id="client_name" placeholder="Client Name *" required>
                 <input type="text" id="client_phone" placeholder="Phone Number *" required>
                 <input type="email" id="client_email" placeholder="Email (Optional)">
