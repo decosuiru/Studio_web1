@@ -118,39 +118,36 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
     td, th { padding: 12px 5px; }
     
     /* iPhone Style Calendar */
-    .calendar-wrapper { padding: 0 !important; border: none; box-shadow: none; }
-    .fc .fc-toolbar { justify-content: center !important; margin-bottom: 10px !important;}
+    .calendar-wrapper { padding: 0 !important; border: none; box-shadow: none; overflow-y: visible;}
+    #calendar { min-height: unset; height: auto; } /* Fixes the massive spacing gap */
+
+    .fc .fc-toolbar { flex-wrap: wrap; gap: 10px; justify-content: center !important; margin-bottom: 10px !important;}
     .fc-toolbar-chunk { display: flex; justify-content: center; width: 100%; align-items: center; position: relative;}
     .fc .fc-toolbar-title { color: #EF4444 !important; font-size: 1.2rem !important; font-weight: 600 !important; }
     
+    /* Show buttons but make them compact */
+    .fc .fc-button { display: inline-block !important; padding: 6px 10px !important; font-size: 12px !important; background: transparent !important; color: #EF4444 !important; border: 1px solid #EF4444 !important; box-shadow: none !important; margin: 0 2px;}
+    .fc .fc-button-active { background: #EF4444 !important; color: white !important;}
+
     /* Clean up the grid */
-    .fc-theme-standard th { border: none !important; color: #9CA3AF !important; font-size: 11px; padding: 5px 0 !important;}
+    .fc-theme-standard th { border-bottom: 1px solid #E5E7EB !important; color: #9CA3AF !important; font-size: 11px; padding: 5px 0 !important;}
     .fc-theme-standard td { border: none !important; }
     .fc-scrollgrid { border: none !important; }
     
-    .fc-daygrid-day-frame { display: flex; flex-direction: column; align-items: center; min-height: 50px !important; border: none !important; padding-top: 5px;}
+    .fc-daygrid-day-frame { display: flex; flex-direction: column; align-items: center; min-height: 40px !important; border: none !important; padding-top: 5px;}
     .fc-daygrid-day-frame:hover { background: transparent;}
     .fc-daygrid-day-top { justify-content: center !important; opacity: 1 !important;}
     
-    /* The circular day number */
     .fc-daygrid-day-number { font-size: 16px; font-weight: 400; color: #1F2937; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; text-decoration: none !important; margin: 0 auto;}
-    
-    /* Selected & Today states */
     .fc-day-today .fc-daygrid-day-frame { background: transparent !important; border: none !important; }
     .fc-day-today .fc-daygrid-day-number { color: #EF4444; font-weight: 600;}
-    
-    /* Highlight circle when clicked */
     .selected-date .fc-daygrid-day-number { background: #EF4444 !important; color: white !important; border-radius: 50%; font-weight: 600;}
     
-    /* Make events tiny dots below numbers */
     .fc-daygrid-day-events { display: flex !important; justify-content: center; flex-direction: row; flex-wrap: wrap; gap: 3px; margin-top: 2px !important; min-height: 8px !important; width: 100%; position: static !important;}
     .fc-daygrid-event-harness { display: block !important; }
     .fc-daygrid-event { background-color: #D1D5DB !important; width: 6px !important; height: 6px !important; border-radius: 50% !important; margin: 0 !important; padding: 0 !important; color: transparent !important; overflow: hidden; border: none !important; }
     .fc-daygrid-event-dot { display: none !important; }
     .fc-event-title { display: none !important; }
-    
-    /* Remove default buttons */
-    .fc .fc-button { display: none !important; }
     
     .mobile-only-list { display: block; border-top: 1px solid #F3F4F6; padding-top: 15px;}
 }
