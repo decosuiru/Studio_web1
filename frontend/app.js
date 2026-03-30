@@ -8,7 +8,7 @@ let allBookings = [];
 let allPettyCash =[];
 let socket = null;
 let inactivityTimer;
-let lastClickedDate = null; // Used for double-tap detection
+let lastClickedDate = null; 
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 
@@ -148,20 +148,22 @@ function renderCalendar() {
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
         editable: false, 
         events: events,
+        
+        // Instantly show details when tapping the gray event dot or block!
         eventClick: (info) => {
-            if(!isMobile) openDetailModal(info.event.extendedProps);
+            openDetailModal(info.event.extendedProps);
         },
+        
         dateClick: (info) => { 
             if (isMobile) {
-                // DOUBLE TAP LOGIC: If tapped date matches last tapped date, open weekly view.
+                // Double tap the cell to jump to Weekly View
                 if (lastClickedDate === info.dateStr) {
                     fullCalendarInstance.changeView('timeGridWeek', info.dateStr);
-                    lastClickedDate = null; // reset
+                    lastClickedDate = null; 
                     return;
                 }
                 
-                lastClickedDate = info.dateStr; // store for next tap
-
+                lastClickedDate = info.dateStr; 
                 document.querySelectorAll('.selected-date').forEach(el => el.classList.remove('selected-date'));
                 info.dayEl.classList.add('selected-date');
 
@@ -205,7 +207,7 @@ function renderListTable() {
             <td><strong>${b.client_name}</strong></td>
             <td class="hide-mobile">${b.customer_type}</td>
             <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
-            <td class="hide-mobile"><span class="status-pill status-${b.status}">${b.status}</span></td>
+            <td><span class="status-pill status-${b.status}">${b.status}</span></td>
             <td><button class="primary-btn" style="padding: 6px 12px" onclick="openDetailModalById(${b.id})">Detail</button></td>
         </tr>
     `).join('');
@@ -228,7 +230,7 @@ function renderFinanceTable() {
                 <td class="hide-mobile">${formatIDR(b.total_price)}</td>
                 <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
                 <td class="hide-mobile text-red"><strong>${formatIDR(b.remaining_payment)}</strong></td>
-                <td><button class="primary-btn" style="padding: 6px 12px" onclick="openDetailModalById(${b.id})">Detail</button></td>
+                <td><span class="status-pill status-${b.status}">${b.status}</span></td>
             </tr>
         `;
     }).join('');
