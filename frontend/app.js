@@ -4,7 +4,7 @@ const SOCKET_URL = API_URL.replace('/api', '');
 
 let currentUser, currentToken;
 let fullCalendarInstance = null;
-let allBookings =[];
+let allBookings = [];
 let allPettyCash =[];
 let socket = null;
 let inactivityTimer;
@@ -41,8 +41,6 @@ function resetInactivityTimer() {
         inactivityTimer = setTimeout(logout, 15 * 60 * 1000); // 15 Minutes
     }
 }
-
-// Listen for user activity
 document.onmousemove = resetInactivityTimer;
 document.onkeypress = resetInactivityTimer;
 document.onclick = resetInactivityTimer;
@@ -99,7 +97,7 @@ function initRealTime() {
             refreshActiveSection();
         });
         socket.on('finance_changed', async () => {
-            if (currentUser && currentUser.role === 'Admin') await fetchPettyCash();
+            await fetchPettyCash(); // Fetches for both Admin and Staff now
             refreshActiveSection();
         });
     }
@@ -122,7 +120,7 @@ async function showSection(section) {
     if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
 
     await fetchAllBookings();
-    if (currentUser && currentUser.role === 'Admin' && section === 'pettycash') await fetchPettyCash();
+    if (section === 'pettycash') await fetchPettyCash();
 
     refreshActiveSection();
 }
@@ -134,7 +132,7 @@ function refreshActiveSection() {
     if (active === 'calendar') renderCalendar();
     if (active === 'bookings') renderListTable();
     if (active === 'finance' && currentUser && currentUser.role === 'Admin') renderFinanceTable();
-    if (active === 'pettycash' && currentUser && currentUser.role === 'Admin') renderPettyCash();
+    if (active === 'pettycash') renderPettyCash();
     if (active === 'accounts' && currentUser && currentUser.role === 'Admin') renderAccountsTable();
 }
 
@@ -149,6 +147,8 @@ async function fetchPettyCash() {
 function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
     if(!calendarEl) return;
+    const isMobile = window.innerWidth <= 768;
+
     const events = allBookings.map(b => ({
         id: b.id, title: `${b.client_name} (${b.customer_type})`, 
         start: `${b.date.split('T')[0]}T${b.start_time}`, end: `${b.date.split('T')[0]}T${b.end_time}`,
@@ -158,15 +158,47 @@ function renderCalendar() {
 
     if (fullCalendarInstance) fullCalendarInstance.destroy();
     fullCalendarInstance = new FullCalendar.Calendar(calendarEl, {
-        initialView: window.innerWidth < 768 ? 'timeGridDay' : 'dayGridMonth', // Better mobile view
-        height: '100%', stickyHeaderDates: true,
-        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
-        editable: false, // DRAG & DROP DISABLED
+        initialView: 'dayGridMonth', // Both use Month to show the dots perfectly
+        height: isMobile ? 'auto' : '100%', 
+        stickyHeaderDates: true,
+        headerToolbar: isMobile 
+            ? { left: 'title', center: '', right: 'prev,next' } 
+            : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+        editable: false, 
         events: events,
-        eventClick: (info) => openDetailModal(info.event.extendedProps),
+        eventClick: (info) => {
+            // Desktop opens modal immediately. Mobile clicks the DATE instead to open list.
+            if(!isMobile) openDetailModal(info.event.extendedProps);
+        },
         dateClick: (info) => { 
-            // Click date to jump to week view
-            fullCalendarInstance.changeView('timeGridWeek', info.dateStr);
+            if (isMobile) {
+                // Highlight tapped background
+                document.querySelectorAll('.fc-daygrid-day').forEach(el => el.style.backgroundColor = '');
+                info.dayEl.style.backgroundColor = '#F3F4F6';
+
+                const dayBookings = allBookings.filter(b => b.date.split('T')[0] === info.dateStr);
+                const listEl = document.getElementById('mobile-event-list');
+                const itemsEl = document.getElementById('mobile-event-items');
+                
+                document.getElementById('mobile-event-date').textContent = new Date(info.dateStr).toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'});
+                listEl.classList.remove('hidden');
+                
+                if (dayBookings.length === 0) {
+                    itemsEl.innerHTML = '<p style="color: #9CA3AF; text-align: center; margin-top: 10px;">No events today</p>';
+                } else {
+                    itemsEl.innerHTML = dayBookings.map(b => `
+                        <div class="mobile-event-card" onclick="openDetailModalById(${b.id})">
+                            <div class="time">${b.start_time.substring(0,5)}</div>
+                            <div class="details">
+                                <strong>${b.client_name}</strong>
+                                <span>${b.customer_type} | ${b.status}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } else {
+                fullCalendarInstance.changeView('timeGridWeek', info.dateStr);
+            }
         }
     });
     fullCalendarInstance.render();
@@ -190,10 +222,34 @@ function renderListTable() {
 
 function renderFinanceTable() {
     let gross = 0, dp = 0, remain = 0;
-    allBookings.forEach(b => { gross += parseFloat(b.total_price); dp += parseFloat(b.dp_paid); remain += parseFloat(b.remaining_payment); });
-    const inc = document.getElementById('fin-income'); if(inc) inc.textContent = formatIDR(gross);
-    const dpe = document.getElementById('fin-dp'); if(dpe) dpe.textContent = formatIDR(dp);
-    const rem = document.getElementById('fin-remain'); if(rem) rem.textContent = formatIDR(remain);
+    const tbody = document.querySelector('#finance-table tbody');
+    let tableHTML = '';
+
+    allBookings.forEach(b => { 
+        gross += parseFloat(b.total_price); 
+        dp += parseFloat(b.dp_paid); 
+        remain += parseFloat(b.remaining_payment); 
+        
+        tableHTML += `
+            <tr>
+                <td>${b.date.split('T')[0]}</td>
+                <td>
+                    <strong>${b.client_name}</strong><br>
+                    <span style="font-size: 12px; color: #666;">📞 ${b.client_phone}</span><br>
+                    <span style="font-size: 12px; color: #888;">${b.client_email ? '✉️ ' + b.client_email : ''}</span>
+                </td>
+                <td>${formatIDR(b.total_price)}</td>
+                <td class="text-green">${formatIDR(b.dp_paid)}</td>
+                <td class="text-red"><strong>${formatIDR(b.remaining_payment)}</strong></td>
+                <td><span class="status-pill status-${b.status}">${b.status}</span></td>
+            </tr>
+        `;
+    });
+
+    if (tbody) tbody.innerHTML = tableHTML;
+    document.getElementById('fin-income').textContent = formatIDR(gross);
+    document.getElementById('fin-dp').textContent = formatIDR(dp);
+    document.getElementById('fin-remain').textContent = formatIDR(remain);
 }
 
 function renderPettyCash() {
@@ -224,6 +280,7 @@ function openDetailModal(b) {
     document.getElementById('det_name').textContent = b.client_name;
     document.getElementById('det_type').textContent = b.customer_type;
     document.getElementById('det_phone').textContent = b.client_phone;
+    // CRASH FIX: Email was previously missing from HTML. It is now completely safe.
     document.getElementById('det_email').textContent = b.client_email || "N/A";
     document.getElementById('det_date').textContent = b.date.split('T')[0];
     document.getElementById('det_time').textContent = `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`;
