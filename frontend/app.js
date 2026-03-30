@@ -52,6 +52,14 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
 function logout() { localStorage.clear(); window.location.reload(); }
 
+// --- MOBILE SIDEBAR LOGIC ---
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('active');
+}
+
 function initApp() {
     currentToken = localStorage.getItem('token');
     if (!currentToken) return;
@@ -72,6 +80,14 @@ async function showSection(section) {
     document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
     document.getElementById(`${section}-section`).classList.remove('hidden');
     document.getElementById('section-title').textContent = section.charAt(0).toUpperCase() + section.slice(1);
+
+    // [NEW] Close mobile sidebar if it's open
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+    }
 
     try {
         allBookings = await safeFetch(`${API_URL}/bookings`, { headers: getHeaders() });
