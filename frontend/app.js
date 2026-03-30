@@ -2,9 +2,13 @@
 const API_URL = 'https://studioweb-production.up.railway.app/api'; 
 // Example: 'https://my-backend.up.railway.app/api'
 
+// [NEW] Setup Socket URL (remove /api from the end to get the root server URL)
+const SOCKET_URL = API_URL.replace('/api', '');
+
 let currentUser, currentToken;
 let fullCalendarInstance = null;
 let allBookings =[];
+let socket = null;
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 
@@ -36,7 +40,7 @@ async function safeFetch(url, options = {}) {
     }
 }
 
-// --- AUTH ---
+// --- INIT & AUTH ---
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
@@ -52,14 +56,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
 function logout() { localStorage.clear(); window.location.reload(); }
 
-// --- MOBILE SIDEBAR LOGIC ---
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    sidebar.classList.toggle('open');
-    overlay.classList.toggle('active');
-}
-
 function initApp() {
     currentToken = localStorage.getItem('token');
     if (!currentToken) return;
@@ -72,16 +68,54 @@ function initApp() {
     if (currentUser.role !== 'Admin') {
         document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
     }
+
+    // [NEW] Initialize Real-Time WebSockets
+    initRealTime();
+    
     showSection('calendar');
 }
 
+// [NEW] REAL-TIME SYNC LOGIC
+function initRealTime() {
+    if (!socket) {
+        socket = io(SOCKET_URL);
+        
+        socket.on('connect', () => {
+            document.getElementById('sync-status').textContent = "🟢 Live Sync On";
+            document.getElementById('sync-status').style.color = "#22c55e";
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('sync-status').textContent = "🔴 Sync Offline";
+            document.getElementById('sync-status').style.color = "#ef4444";
+        });
+
+        // When someone else makes a change, refresh data instantly!
+        socket.on('bookings_changed', async () => {
+            await fetchAllBookings();
+            
+            // Re-render only the active screen so the user's view updates magically
+            const activeSection = document.querySelector('.section:not(.hidden)').id.replace('-section', '');
+            if (activeSection === 'calendar') renderCalendar();
+            if (activeSection === 'bookings') renderListTable();
+            if (activeSection === 'finance' && currentUser.role === 'Admin') renderFinanceTable();
+        });
+    }
+}
+
 // --- NAVIGATION & FETCH ---
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('active');
+}
+
 async function showSection(section) {
     document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
     document.getElementById(`${section}-section`).classList.remove('hidden');
     document.getElementById('section-title').textContent = section.charAt(0).toUpperCase() + section.slice(1);
 
-    // [NEW] Close mobile sidebar if it's open
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     if (sidebar.classList.contains('open')) {
@@ -89,9 +123,7 @@ async function showSection(section) {
         overlay.classList.remove('active');
     }
 
-    try {
-        allBookings = await safeFetch(`${API_URL}/bookings`, { headers: getHeaders() });
-    } catch (err) { showAlert("Error fetching bookings", true); }
+    await fetchAllBookings();
 
     if (section === 'calendar') renderCalendar();
     if (section === 'bookings') renderListTable();
@@ -99,11 +131,17 @@ async function showSection(section) {
     if (section === 'accounts' && currentUser.role === 'Admin') renderAccountsTable();
 }
 
+async function fetchAllBookings() {
+    try {
+        allBookings = await safeFetch(`${API_URL}/bookings`, { headers: getHeaders() });
+    } catch (err) { console.error("Error fetching bookings"); }
+}
+
 // --- RENDERING ---
 function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
     const events = allBookings.map(b => ({
-        id: b.id, title: `${b.client_name} - ${b.studio}`,
+        id: b.id, title: b.client_name, // Removed Studio from title
         start: `${b.date.split('T')[0]}T${b.start_time}`, end: `${b.date.split('T')[0]}T${b.end_time}`,
         backgroundColor: b.status === 'Paid' ? '#22c55e' : (b.status === 'Partial' ? '#f97316' : '#ef4444'),
         extendedProps: b
@@ -126,7 +164,8 @@ function renderCalendar() {
                     body: JSON.stringify({ ...b, date: newDate, start_time: newStart, end_time: newEnd })
                 });
                 showAlert("Moved Successfully");
-                allBookings = await safeFetch(`${API_URL}/bookings`, { headers: getHeaders() });
+                // Local re-fetch is optional since socket will trigger it anyway, but it ensures smoothness
+                await fetchAllBookings(); 
             } catch (err) { info.revert(); showAlert(err.message, true); }
         }
     });
@@ -139,7 +178,6 @@ function renderListTable() {
             <td>${b.date.split('T')[0]}</td>
             <td>${b.start_time.substring(0,5)}</td>
             <td><strong>${b.client_name}</strong></td>
-            <td>${b.studio}</td>
             <td><span class="status-pill status-${b.status}">${b.status}</span></td>
             <td><button class="primary-btn" style="padding: 5px" onclick="openDetailModalById(${b.id})">Detail</button></td>
         </tr>
@@ -166,7 +204,6 @@ function openDetailModal(b) {
     document.getElementById('det_email').textContent = b.client_email || "N/A";
     document.getElementById('det_date').textContent = b.date.split('T')[0];
     document.getElementById('det_time').textContent = `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`;
-    document.getElementById('det_studio').textContent = b.studio;
     document.getElementById('det_total').textContent = formatIDR(b.total_price);
     document.getElementById('det_dp').textContent = formatIDR(b.dp_paid);
     document.getElementById('det_remain').textContent = formatIDR(b.remaining_payment);
@@ -205,7 +242,6 @@ function openEditModal(b) {
     document.getElementById('date').value = b.date.split('T')[0];
     document.getElementById('start_time').value = b.start_time.substring(0,5);
     document.getElementById('end_time').value = b.end_time.substring(0,5);
-    document.getElementById('studio').value = b.studio;
     document.getElementById('total_price').value = b.total_price;
     document.getElementById('dp_paid').value = b.dp_paid;
     calcRemaining();
@@ -224,7 +260,6 @@ document.getElementById('booking-form').addEventListener('submit', async (e) => 
         date: document.getElementById('date').value,
         start_time: document.getElementById('start_time').value,
         end_time: document.getElementById('end_time').value,
-        studio: document.getElementById('studio').value,
         total_price: parseFloat(document.getElementById('total_price').value) || 0,
         dp_paid: parseFloat(document.getElementById('dp_paid').value) || 0
     };
@@ -236,7 +271,7 @@ document.getElementById('booking-form').addEventListener('submit', async (e) => 
         await safeFetch(url, { method: bookingId ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
         showAlert(bookingId ? "Updated!" : "Saved!");
         closeBookingModal();
-        showSection(document.querySelector('.section:not(.hidden)').id.replace('-section', ''));
+        // WebSockets will automatically refresh the screen for us!
     } catch (err) { showAlert(err.message, true); }
 });
 
@@ -246,7 +281,7 @@ async function deleteFromModal(id) {
         await safeFetch(`${API_URL}/bookings/${id}`, { method: 'DELETE', headers: getHeaders() });
         showAlert("Deleted!");
         closeDetailModal();
-        showSection(document.querySelector('.section:not(.hidden)').id.replace('-section', ''));
+        // WebSockets will automatically refresh the screen for us!
     } catch (err) { showAlert(err.message, true); }
 }
 
