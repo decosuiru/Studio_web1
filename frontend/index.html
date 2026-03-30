@@ -91,7 +91,6 @@
                     <div class="card"><h3>Balance</h3><p class="amount" id="pc-balance">Rp 0</p></div>
                 </div>
                 
-                <!-- [NEW] Mobile-friendly Add Button -->
                 <button class="primary-btn shadow-btn w-full mb-15" onclick="openPcModal()">+ Add Transaction</button>
 
                 <div class="table-container">
@@ -124,11 +123,12 @@
         </main>
     </div>
 
-    <!-- PETTY CASH MODAL -->
+    <!-- PETTY CASH FORM MODAL -->
     <div id="pc-modal" class="modal hidden">
         <div class="modal-content">
-            <h3>Add Petty Cash</h3>
+            <h3 id="pc-modal-title">Add Petty Cash</h3>
             <form id="pc-form" class="mt-15">
+                <input type="hidden" id="pc_id">
                 <input type="date" id="pc_date" required>
                 <input type="text" id="pc_desc" placeholder="Description" required>
                 <select id="pc_type" required>
@@ -144,7 +144,25 @@
         </div>
     </div>
 
-    <!-- DETAIL MODAL -->
+    <!-- [NEW] PETTY CASH DETAIL MODAL -->
+    <div id="pc-detail-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Transaction Details</h3>
+            <div class="detail-grid mt-15">
+                <div><span class="detail-label">Date:</span> <strong id="pc_det_date"></strong></div>
+                <div><span class="detail-label">Description:</span> <strong id="pc_det_desc"></strong></div>
+                <div><span class="detail-label">Type:</span> <span id="pc_det_type" class="role-pill"></span></div>
+                <div><span class="detail-label">Amount:</span> <strong id="pc_det_amount"></strong></div>
+            </div>
+            <div class="modal-actions mt-20">
+                <button type="button" class="del-btn" id="btn-del-pc">Delete</button>
+                <button type="button" class="cancel-btn" onclick="closePcDetailModal()">Close</button>
+                <button type="button" class="primary-btn" id="btn-edit-pc">Edit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOOKING DETAIL MODAL -->
     <div id="detail-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Booking Details</h3>
@@ -174,12 +192,14 @@
             <h3 id="modal-title">New Booking</h3>
             <form id="booking-form" class="mt-15">
                 <input type="hidden" id="booking_id">
-                <select id="customer_type" required>
-                    <option value="" disabled selected>Select Customer Type *</option>
-                    <option value="Regular">Regular</option>
-                    <option value="Vendor">Vendor</option>
-                    <option value="Management">Management</option>
-                </select>
+                <div class="form-group">
+                    <select id="customer_type" required>
+                        <option value="" disabled selected>Select Customer Type *</option>
+                        <option value="Regular">Regular</option>
+                        <option value="Vendor">Vendor</option>
+                        <option value="Management">Management</option>
+                    </select>
+                </div>
                 <input type="text" id="client_name" placeholder="Client Name *" required>
                 <input type="text" id="client_phone" placeholder="Phone Number *" required>
                 <input type="email" id="client_email" placeholder="Email (Optional)">
