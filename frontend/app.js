@@ -1,5 +1,5 @@
-const API_URL = 'http://localhost:3000/api'; 
-const SOCKET_URL = API_URL.https://studioweb-production.up.railway.app/api('/api', '');
+const API_URL = 'https://studioweb-production.up.railway.app/api'; 
+const SOCKET_URL = API_URL.replace('/api', '');
 
 let currentUser, currentToken;
 let fullCalendarInstance = null;
