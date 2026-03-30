@@ -1,12 +1,13 @@
+// ⚠️ MAKE SURE YOU KEEP THE QUOTES AROUND YOUR URL!
 const API_URL = 'https://studioweb-production.up.railway.app/api'; 
 const SOCKET_URL = API_URL.replace('/api', '');
 
 let currentUser, currentToken;
 let fullCalendarInstance = null;
-let allBookings = [];
+let allBookings =[];
 let allPettyCash =[];
 let socket = null;
-let inactivityTimer; // Auto-logout timer
+let inactivityTimer;
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 
@@ -40,8 +41,8 @@ function resetInactivityTimer() {
         inactivityTimer = setTimeout(logout, 15 * 60 * 1000); // 15 Minutes
     }
 }
+
 // Listen for user activity
-window.onload = resetInactivityTimer;
 document.onmousemove = resetInactivityTimer;
 document.onkeypress = resetInactivityTimer;
 document.onclick = resetInactivityTimer;
@@ -84,15 +85,21 @@ function initApp() {
 function initRealTime() {
     if (!socket) {
         socket = io(SOCKET_URL);
-        socket.on('connect', () => document.getElementById('sync-status').style.display = 'block');
-        socket.on('disconnect', () => document.getElementById('sync-status').style.display = 'none');
+        socket.on('connect', () => {
+            const statusEl = document.getElementById('sync-status');
+            if(statusEl) statusEl.style.display = 'block';
+        });
+        socket.on('disconnect', () => {
+            const statusEl = document.getElementById('sync-status');
+            if(statusEl) statusEl.style.display = 'none';
+        });
         
         socket.on('bookings_changed', async () => {
             await fetchAllBookings();
             refreshActiveSection();
         });
         socket.on('finance_changed', async () => {
-            if (currentUser.role === 'Admin') await fetchPettyCash();
+            if (currentUser && currentUser.role === 'Admin') await fetchPettyCash();
             refreshActiveSection();
         });
     }
@@ -106,36 +113,42 @@ function toggleSidebar() {
 
 async function showSection(section) {
     document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
-    document.getElementById(`${section}-section`).classList.remove('hidden');
-    document.getElementById('section-title').textContent = section.charAt(0).toUpperCase() + section.slice(1).replace('cash', ' Cash');
+    const secEl = document.getElementById(`${section}-section`);
+    if(secEl) secEl.classList.remove('hidden');
+    
+    const titleEl = document.getElementById('section-title');
+    if(titleEl) titleEl.textContent = section.charAt(0).toUpperCase() + section.slice(1).replace('cash', ' Cash');
 
     if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
 
     await fetchAllBookings();
-    if (currentUser.role === 'Admin' && section === 'pettycash') await fetchPettyCash();
+    if (currentUser && currentUser.role === 'Admin' && section === 'pettycash') await fetchPettyCash();
 
     refreshActiveSection();
 }
 
 function refreshActiveSection() {
-    const active = document.querySelector('.section:not(.hidden)').id.replace('-section', '');
+    const activeEl = document.querySelector('.section:not(.hidden)');
+    if(!activeEl) return;
+    const active = activeEl.id.replace('-section', '');
     if (active === 'calendar') renderCalendar();
     if (active === 'bookings') renderListTable();
-    if (active === 'finance' && currentUser.role === 'Admin') renderFinanceTable();
-    if (active === 'pettycash' && currentUser.role === 'Admin') renderPettyCash();
-    if (active === 'accounts' && currentUser.role === 'Admin') renderAccountsTable();
+    if (active === 'finance' && currentUser && currentUser.role === 'Admin') renderFinanceTable();
+    if (active === 'pettycash' && currentUser && currentUser.role === 'Admin') renderPettyCash();
+    if (active === 'accounts' && currentUser && currentUser.role === 'Admin') renderAccountsTable();
 }
 
 async function fetchAllBookings() {
-    try { allBookings = await safeFetch(`${API_URL}/bookings`, { headers: getHeaders() }); } catch (err) {}
+    try { allBookings = await safeFetch(`${API_URL}/bookings`, { headers: getHeaders() }); } catch (err) { console.error(err); }
 }
 async function fetchPettyCash() {
-    try { allPettyCash = await safeFetch(`${API_URL}/petty_cash`, { headers: getHeaders() }); } catch (err) {}
+    try { allPettyCash = await safeFetch(`${API_URL}/petty_cash`, { headers: getHeaders() }); } catch (err) { console.error(err); }
 }
 
 // --- RENDERING CALENDAR & TABLES ---
 function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
+    if(!calendarEl) return;
     const events = allBookings.map(b => ({
         id: b.id, title: `${b.client_name} (${b.customer_type})`, 
         start: `${b.date.split('T')[0]}T${b.start_time}`, end: `${b.date.split('T')[0]}T${b.end_time}`,
@@ -148,11 +161,11 @@ function renderCalendar() {
         initialView: window.innerWidth < 768 ? 'timeGridDay' : 'dayGridMonth', // Better mobile view
         height: '100%', stickyHeaderDates: true,
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
-        editable: false, // [UPDATE 3] DRAG & DROP DISABLED
+        editable: false, // DRAG & DROP DISABLED
         events: events,
         eventClick: (info) => openDetailModal(info.event.extendedProps),
         dateClick: (info) => { 
-            // [UPDATE 4] Click date to jump to week view
+            // Click date to jump to week view
             fullCalendarInstance.changeView('timeGridWeek', info.dateStr);
         }
     });
@@ -160,7 +173,9 @@ function renderCalendar() {
 }
 
 function renderListTable() {
-    document.querySelector('#bookings-table tbody').innerHTML = allBookings.map(b => `
+    const tbody = document.querySelector('#bookings-table tbody');
+    if(!tbody) return;
+    tbody.innerHTML = allBookings.map(b => `
         <tr>
             <td>${b.date.split('T')[0]}</td>
             <td>${b.start_time.substring(0,5)}</td>
@@ -176,14 +191,16 @@ function renderListTable() {
 function renderFinanceTable() {
     let gross = 0, dp = 0, remain = 0;
     allBookings.forEach(b => { gross += parseFloat(b.total_price); dp += parseFloat(b.dp_paid); remain += parseFloat(b.remaining_payment); });
-    document.getElementById('fin-income').textContent = formatIDR(gross);
-    document.getElementById('fin-dp').textContent = formatIDR(dp);
-    document.getElementById('fin-remain').textContent = formatIDR(remain);
+    const inc = document.getElementById('fin-income'); if(inc) inc.textContent = formatIDR(gross);
+    const dpe = document.getElementById('fin-dp'); if(dpe) dpe.textContent = formatIDR(dp);
+    const rem = document.getElementById('fin-remain'); if(rem) rem.textContent = formatIDR(remain);
 }
 
 function renderPettyCash() {
     let totalIn = 0, totalOut = 0;
-    document.querySelector('#pc-table tbody').innerHTML = allPettyCash.map(t => {
+    const tbody = document.querySelector('#pc-table tbody');
+    if(!tbody) return;
+    tbody.innerHTML = allPettyCash.map(t => {
         const amt = parseFloat(t.amount);
         if (t.type === 'IN') totalIn += amt; else totalOut += amt;
         return `<tr>
@@ -195,9 +212,9 @@ function renderPettyCash() {
         </tr>`;
     }).join('');
     
-    document.getElementById('pc-in').textContent = formatIDR(totalIn);
-    document.getElementById('pc-out').textContent = formatIDR(totalOut);
-    document.getElementById('pc-balance').textContent = formatIDR(totalIn - totalOut);
+    const pIn = document.getElementById('pc-in'); if(pIn) pIn.textContent = formatIDR(totalIn);
+    const pOut = document.getElementById('pc-out'); if(pOut) pOut.textContent = formatIDR(totalOut);
+    const pBal = document.getElementById('pc-balance'); if(pBal) pBal.textContent = formatIDR(totalIn - totalOut);
 }
 
 // --- MODALS ---
@@ -257,30 +274,33 @@ function openEditModal(b) {
 function closeBookingModal() { document.getElementById('booking-modal').classList.add('hidden'); }
 
 // --- API SUBMISSIONS ---
-document.getElementById('booking-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = {
-        customer_type: document.getElementById('customer_type').value,
-        client_name: document.getElementById('client_name').value.trim(),
-        client_phone: document.getElementById('client_phone').value.trim(),
-        client_email: document.getElementById('client_email').value.trim(),
-        date: document.getElementById('date').value,
-        start_time: document.getElementById('start_time').value,
-        end_time: document.getElementById('end_time').value,
-        total_price: parseFloat(document.getElementById('total_price').value) || 0,
-        dp_paid: parseFloat(document.getElementById('dp_paid').value) || 0
-    };
-    if(!payload.customer_type) return showAlert("Please select Customer Type", true);
+const bookingForm = document.getElementById('booking-form');
+if(bookingForm) {
+    bookingForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            customer_type: document.getElementById('customer_type').value,
+            client_name: document.getElementById('client_name').value.trim(),
+            client_phone: document.getElementById('client_phone').value.trim(),
+            client_email: document.getElementById('client_email').value.trim(),
+            date: document.getElementById('date').value,
+            start_time: document.getElementById('start_time').value,
+            end_time: document.getElementById('end_time').value,
+            total_price: parseFloat(document.getElementById('total_price').value) || 0,
+            dp_paid: parseFloat(document.getElementById('dp_paid').value) || 0
+        };
+        if(!payload.customer_type) return showAlert("Please select Customer Type", true);
 
-    const bookingId = document.getElementById('booking_id').value;
-    try {
-        await safeFetch(bookingId ? `${API_URL}/bookings/${bookingId}` : `${API_URL}/bookings`, { 
-            method: bookingId ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(payload) 
-        });
-        showAlert(bookingId ? "Updated!" : "Saved!");
-        closeBookingModal();
-    } catch (err) { showAlert(err.message, true); }
-});
+        const bookingId = document.getElementById('booking_id').value;
+        try {
+            await safeFetch(bookingId ? `${API_URL}/bookings/${bookingId}` : `${API_URL}/bookings`, { 
+                method: bookingId ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(payload) 
+            });
+            showAlert(bookingId ? "Updated!" : "Saved!");
+            closeBookingModal();
+        } catch (err) { showAlert(err.message, true); }
+    });
+}
 
 async function deleteFromModal(id) {
     if (!confirm("Delete this booking?")) return;
@@ -291,22 +311,25 @@ async function deleteFromModal(id) {
     } catch (err) { showAlert(err.message, true); }
 }
 
-document.getElementById('pc-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try {
-        await safeFetch(`${API_URL}/petty_cash`, { 
-            method: 'POST', headers: getHeaders(), 
-            body: JSON.stringify({
-                date: document.getElementById('pc_date').value,
-                description: document.getElementById('pc_desc').value.trim(),
-                type: document.getElementById('pc_type').value,
-                amount: parseFloat(document.getElementById('pc_amount').value)
-            }) 
-        });
-        showAlert("Transaction added!");
-        document.getElementById('pc-form').reset();
-    } catch (err) { showAlert(err.message, true); }
-});
+const pcForm = document.getElementById('pc-form');
+if(pcForm) {
+    pcForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await safeFetch(`${API_URL}/petty_cash`, { 
+                method: 'POST', headers: getHeaders(), 
+                body: JSON.stringify({
+                    date: document.getElementById('pc_date').value,
+                    description: document.getElementById('pc_desc').value.trim(),
+                    type: document.getElementById('pc_type').value,
+                    amount: parseFloat(document.getElementById('pc_amount').value)
+                }) 
+            });
+            showAlert("Transaction added!");
+            document.getElementById('pc-form').reset();
+        } catch (err) { showAlert(err.message, true); }
+    });
+}
 
 async function deletePettyCash(id) {
     if(!confirm("Delete transaction?")) return;
@@ -316,31 +339,41 @@ async function deletePettyCash(id) {
     } catch(err) { showAlert(err.message, true); }
 }
 
-// ... (Accounts Logic exactly same as before) ...
 async function renderAccountsTable() {
     try {
         const users = await safeFetch(`${API_URL}/users`, { headers: getHeaders() });
-        document.querySelector('#accounts-table tbody').innerHTML = users.map(u => `
+        const tbody = document.querySelector('#accounts-table tbody');
+        if(!tbody) return;
+        tbody.innerHTML = users.map(u => `
             <tr><td><strong>${u.email}</strong></td><td><span class="role-pill">${u.role}</span></td>
             <td>${new Date(u.created_at).toLocaleDateString()}</td>
             <td><button class="del-btn" style="padding:6px 12px" onclick="deleteAccount(${u.id})">Del</button></td></tr>
         `).join('');
-    } catch (err) { }
+    } catch (err) { console.error(err); }
 }
 
-document.getElementById('account-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try {
-        await safeFetch(`${API_URL}/users`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({
-            role: document.getElementById('acc_role').value, email: document.getElementById('acc_email').value.trim(), password: document.getElementById('acc_password').value
-        }) });
-        showAlert("Account created!"); document.getElementById('account-form').reset(); renderAccountsTable();
-    } catch (err) { showAlert(err.message, true); }
-});
+const accForm = document.getElementById('account-form');
+if(accForm) {
+    accForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await safeFetch(`${API_URL}/users`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({
+                role: document.getElementById('acc_role').value, email: document.getElementById('acc_email').value.trim(), password: document.getElementById('acc_password').value
+            }) });
+            showAlert("Account created!"); document.getElementById('account-form').reset(); renderAccountsTable();
+        } catch (err) { showAlert(err.message, true); }
+    });
+}
 
 async function deleteAccount(id) {
     if(!confirm("Delete account?")) return;
     try { await safeFetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: getHeaders() }); renderAccountsTable(); } catch (err) { showAlert(err.message, true); }
 }
 
-window.onload = () => { if(localStorage.getItem('token')) initApp(); }
+// --- INITIALIZE APP ---
+window.onload = () => { 
+    resetInactivityTimer();
+    if(localStorage.getItem('token')) {
+        initApp(); 
+    }
+};
