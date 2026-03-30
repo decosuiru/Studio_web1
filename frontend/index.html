@@ -30,7 +30,7 @@
                 <button class="nav-btn" onclick="showSection('calendar')">📅 Calendar</button>
                 <button class="nav-btn" onclick="showSection('bookings')">📋 Bookings</button>
                 <button class="nav-btn admin-only" onclick="showSection('finance')">💰 Finance</button>
-                <button class="nav-btn admin-only" onclick="showSection('pettycash')">💵 Petty Cash</button>
+                <button class="nav-btn" onclick="showSection('pettycash')">💵 Petty Cash</button>
                 <button class="nav-btn admin-only" onclick="showSection('accounts')">👥 Accounts</button>
             </nav>
             <button class="logout-btn" onclick="logout()">Logout</button>
@@ -50,7 +50,14 @@
 
             <!-- SECTIONS -->
             <section id="calendar-section" class="section active">
-                <div class="table-container calendar-wrapper"><div id="calendar"></div></div>
+                <div class="table-container calendar-wrapper">
+                    <div id="calendar"></div>
+                    <!-- iOS-style Mobile Event List -->
+                    <div id="mobile-event-list" class="mobile-only-list hidden mt-15">
+                        <h4 id="mobile-event-date" style="color: var(--danger); font-size: 16px; margin-bottom: 10px; padding-left: 5px;"></h4>
+                        <div id="mobile-event-items"></div>
+                    </div>
+                </div>
             </section>
 
             <section id="bookings-section" class="section hidden">
@@ -67,6 +74,13 @@
                     <div class="card"><h3>Total Gross Booking</h3><p class="amount" id="fin-income">Rp 0</p></div>
                     <div class="card bg-green"><h3>Total Received</h3><p class="amount text-green" id="fin-dp">Rp 0</p></div>
                     <div class="card bg-red"><h3>Unpaid Balance</h3><p class="amount text-red" id="fin-remain">Rp 0</p></div>
+                </div>
+                <h3 class="mt-20 mb-15">Client Transactions</h3>
+                <div class="table-container">
+                    <table id="finance-table">
+                        <thead><tr><th>Date</th><th>Client Info</th><th>Total Price</th><th>Total Received</th><th>Remaining</th><th>Status</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </section>
 
@@ -130,6 +144,7 @@
                 <div><span class="detail-label">Status:</span> <span id="det_status" class="status-pill"></span></div>
                 <div><span class="detail-label">Customer Type:</span> <strong id="det_type"></strong></div>
                 <div><span class="detail-label">Phone:</span> <span id="det_phone"></span></div>
+                <div><span class="detail-label">Email:</span> <span id="det_email"></span></div>
                 <div><span class="detail-label">Date:</span> <strong id="det_date"></strong></div>
                 <div><span class="detail-label">Time:</span> <strong id="det_time"></strong></div>
                 <div><span class="detail-label">Total Booking Price:</span> <strong id="det_total"></strong></div>
