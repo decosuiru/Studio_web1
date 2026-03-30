@@ -3,7 +3,7 @@
     --sidebar: #1e293b; --danger: #ef4444; --success: #22c55e; --warning: #f97316;
 }
 * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; }
-body { background: linear-gradient(--white, #4E71FF); color: var(--text); }
+body { background: linear-gradient(to bottom, #BBFBFF, #4E71FF); color: var(--text); }
 .hidden { display: none !important; } .active { display: flex; }
 .alert { position: fixed; top: 20px; right: 20px; padding: 15px 20px; background: var(--primary); color: white; border-radius: 8px; z-index: 1000; }
 .alert.error { background: var(--danger); }
