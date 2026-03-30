@@ -10,7 +10,7 @@ body { background: var(--bg); color: var(--text); }
 
 #login-view { height: 100vh; justify-content: center; align-items: center; }
 .login-card { background: var(--white); padding: 50px 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); width: 400px; text-align: center; }
-.login-title { font-size: 24px; margin-bottom: 30px; color: var(--text); }
+.login-title { font-size: 30px; margin-bottom: 30px; color: var(--text); }
 
 #app-view { display: flex; height: 100vh; overflow: hidden; }
 .sidebar { width: 250px; background: var(--sidebar); color: white; padding: 20px; display: flex; flex-direction: column; flex-shrink: 0; }
