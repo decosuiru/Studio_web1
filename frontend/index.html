@@ -23,9 +23,14 @@
     </div>
 
     <!-- MAIN DASHBOARD -->
+    <!-- MAIN DASHBOARD -->
     <div id="app-view" class="view hidden">
-        <aside class="sidebar">
-            <h2 class="brand">Studio Ciwastra</h2>
+        
+        <!-- [NEW] Dark overlay for mobile sidebar -->
+        <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        <aside class="sidebar" id="sidebar">
+            <h2 class="brand">StudioPro</h2>
             <nav>
                 <button class="nav-btn" onclick="showSection('calendar')">📅 Calendar</button>
                 <button class="nav-btn" onclick="showSection('bookings')">📋 List View</button>
@@ -36,11 +41,15 @@
         </aside>
 
         <main class="content">
+            <!-- [UPDATED] Header with Hamburger Menu -->
             <header>
-                <h2 id="section-title">Calendar</h2>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+                    <h2 id="section-title">Calendar</h2>
+                </div>
                 <div class="header-right">
                     <button class="primary-btn" onclick="openBookingModal()">+ New Booking</button>
-                    <div id="user-info"></div>
+                    <div id="user-info" style="font-size: 13px;"></div>
                 </div>
             </header>
 
