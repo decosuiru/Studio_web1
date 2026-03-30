@@ -32,7 +32,7 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
 /* Utilities */
-.mt-15 { margin-top: 15px; } .mt-20 { margin-top: 20px; } .mb-20 { margin-bottom: 20px; }
+.mt-15 { margin-top: 15px; } .mt-20 { margin-top: 20px; } .mb-15 { margin-bottom: 15px; } .mb-20 { margin-bottom: 20px; }
 .text-left { text-align: left; } .w-full { width: 100%; }
 .text-green { color: var(--success) !important; font-weight: 600; } 
 .text-red { color: var(--danger) !important; font-weight: 600; }
@@ -79,7 +79,7 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
 .calc-text { text-align: right; margin-bottom: 20px; font-size: 16px;}
 .modal-actions { display: flex; gap: 12px; } .modal-actions button { flex: 1; }
 
-/* Calendar UX Overhaul */
+/* Calendar Base */
 .calendar-wrapper { padding: 15px !important; }
 #calendar { min-height: 500px; height: 100%; font-size: 14px;}
 .fc .fc-toolbar.fc-header-toolbar { margin-bottom: 1.5em !important; }
@@ -93,7 +93,14 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
 .fc-day-today .fc-daygrid-day-frame { background: #EEF2FF !important; border: 1px solid var(--primary) !important; }
 .fc .fc-daygrid-event { margin-top: 2px !important; padding: 4px 6px !important; border-radius: 6px !important; font-size: 11px !important; font-weight: 600 !important; border: none !important; cursor: pointer;}
 
-/* Mobile Responsive */
+/* Mobile Calendar Overrides (iPhone Style) */
+.mobile-only-list { display: none; }
+.mobile-event-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; gap: 15px; align-items: center; cursor: pointer; border: 1px solid #F3F4F6;}
+.mobile-event-card .time { font-weight: 700; color: var(--primary); font-size: 16px; min-width: 50px;}
+.mobile-event-card .details { display: flex; flex-direction: column; }
+.mobile-event-card .details strong { color: var(--text); font-size: 15px; }
+.mobile-event-card .details span { color: #6B7280; font-size: 13px; }
+
 #sidebar-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 99; display: none; backdrop-filter: blur(2px);}
 #sidebar-overlay.active { display: block; }
 .mobile-menu-btn { display: none; background: transparent; color: var(--text); border: 1px solid #D1D5DB; padding: 6px 12px; border-radius: 8px; font-size: 20px; }
@@ -103,16 +110,26 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
     .sidebar { position: fixed; left: -260px; top: 0; height: 100vh; z-index: 100; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 4px 0 24px rgba(0,0,0,0.15);}
     .sidebar.open { left: 0; }
     .mobile-menu-btn { display: block; }
-    .sync-indicator { display: none !important; } /* Hide on mobile to save space */
+    .sync-indicator { display: none !important; }
     .content { padding: 15px; }
     header { margin-bottom: 10px; padding-bottom: 10px;}
     .cards-grid { grid-template-columns: 1fr !important; gap: 12px;}
-    
-    /* Calendar Mobile Fixes */
-    .fc .fc-toolbar { flex-wrap: wrap; gap: 10px; justify-content: center !important;}
-    .fc-toolbar-chunk { display: flex; justify-content: center; width: 100%;}
-    .fc .fc-button { padding: 6px 10px !important; font-size: 12px !important;}
-    
     .time-group { flex-direction: column; gap: 10px; }
     .to-txt { display: none; }
+    
+    /* iPhone Style Calendar Mobile Overrides */
+    .fc .fc-toolbar-title { color: #EF4444 !important; font-size: 1.4rem !important; font-weight: 700 !important; }
+    .fc-theme-standard th { border-bottom: 1px solid #E5E7EB !important; color: #9CA3AF !important; font-size: 11px;}
+    .fc-theme-standard td { border: none !important; }
+    .fc-daygrid-day-top { justify-content: center !important; margin-top: 5px; }
+    .fc-daygrid-day-number { font-size: 15px; font-weight: 500; color: #1F2937; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; text-decoration: none !important; }
+    .fc-day-today .fc-daygrid-day-number { background: #EF4444; color: white; border-radius: 50%; }
+    .fc-day-today .fc-daygrid-day-frame { background: transparent !important; border: none !important; }
+    .fc-daygrid-day-events { display: flex; justify-content: center; align-items: flex-start; min-height: 12px !important; margin-top: 2px;}
+    
+    /* Make events tiny dots */
+    .fc-daygrid-event { background: #9CA3AF !important; width: 6px !important; height: 6px !important; border-radius: 50% !important; margin: 0 1px !important; padding: 0 !important; color: transparent !important; overflow: hidden; border: none !important; }
+    .fc-daygrid-event-harness { display: inline-block !important; }
+    .mobile-only-list { display: block; }
+    .fc .fc-button { background: transparent !important; color: #EF4444 !important; border: none !important; box-shadow: none !important;}
 }
