@@ -186,7 +186,35 @@ function renderListTable() {
 
 function renderFinanceTable() {
     let gross = 0, dp = 0, remain = 0;
-    allBookings.forEach(b => { gross += parseFloat(b.total_price); dp += parseFloat(b.dp_paid); remain += parseFloat(b.remaining_payment); });
+    const tbody = document.querySelector('#finance-table tbody');
+    let tableHTML = '';
+
+    allBookings.forEach(b => { 
+        gross += parseFloat(b.total_price); 
+        dp += parseFloat(b.dp_paid); 
+        remain += parseFloat(b.remaining_payment); 
+        
+        // Build rows for the client details table
+        tableHTML += `
+            <tr>
+                <td>${b.date.split('T')[0]}</td>
+                <td>
+                    <strong>${b.client_name}</strong><br>
+                    <span style="font-size: 12px; color: #666;">📞 ${b.client_phone}</span><br>
+                    <span style="font-size: 12px; color: #888;">${b.client_email ? '✉️ ' + b.client_email : ''}</span>
+                </td>
+                <td>${formatIDR(b.total_price)}</td>
+                <td>${formatIDR(b.dp_paid)}</td>
+                <td class="danger-text"><strong>${formatIDR(b.remaining_payment)}</strong></td>
+                <td><span class="status-pill status-${b.status}">${b.status}</span></td>
+            </tr>
+        `;
+    });
+
+    // Inject the rows into the table
+    if (tbody) tbody.innerHTML = tableHTML;
+
+    // Update the summary cards
     document.getElementById('fin-income').textContent = formatIDR(gross);
     document.getElementById('fin-dp').textContent = formatIDR(dp);
     document.getElementById('fin-remain').textContent = formatIDR(remain);
