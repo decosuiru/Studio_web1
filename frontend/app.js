@@ -8,6 +8,7 @@ let allBookings = [];
 let allPettyCash =[];
 let socket = null;
 let inactivityTimer;
+let lastClickedDate = null; // Used for double-tap detection
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 
@@ -68,7 +69,6 @@ function initApp() {
     document.getElementById('login-view').classList.add('hidden');
     document.getElementById('app-view').classList.remove('hidden');
     
-    // Admin only pages (Accounts & Finance summary)
     if (currentUser.role !== 'Admin') {
         document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
     }
@@ -145,7 +145,7 @@ function renderCalendar() {
         initialView: 'dayGridMonth', 
         height: isMobile ? 'auto' : '100%', 
         contentHeight: 'auto',
-        headerToolbar: isMobile ? { left: '', center: 'title', right: '' } : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
         editable: false, 
         events: events,
         eventClick: (info) => {
@@ -153,7 +153,15 @@ function renderCalendar() {
         },
         dateClick: (info) => { 
             if (isMobile) {
-                // iPhone Calendar styling logic
+                // DOUBLE TAP LOGIC: If tapped date matches last tapped date, open weekly view.
+                if (lastClickedDate === info.dateStr) {
+                    fullCalendarInstance.changeView('timeGridWeek', info.dateStr);
+                    lastClickedDate = null; // reset
+                    return;
+                }
+                
+                lastClickedDate = info.dateStr; // store for next tap
+
                 document.querySelectorAll('.selected-date').forEach(el => el.classList.remove('selected-date'));
                 info.dayEl.classList.add('selected-date');
 
@@ -161,7 +169,6 @@ function renderCalendar() {
                 const listEl = document.getElementById('mobile-event-list');
                 const itemsEl = document.getElementById('mobile-event-items');
                 
-                // Format "November 14, 2024"
                 document.getElementById('mobile-event-date').textContent = new Date(info.dateStr).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
                 listEl.classList.remove('hidden');
                 
@@ -243,7 +250,7 @@ function renderPettyCash() {
             <td>${t.description}</td>
             <td class="hide-mobile"><span class="role-pill" style="background:${t.type==='IN'?'#D1FAE5':'#FEE2E2'}; color:${t.type==='IN'?'#065F46':'#991B1B'}">${t.type}</span></td>
             <td class="${t.type==='IN'?'text-green':'text-red'}">${t.type==='IN'?'+':'-'} ${formatIDR(amt)}</td>
-            <td><button class="del-btn" style="padding: 6px 12px" onclick="deletePettyCash(${t.id})">Del</button></td>
+            <td><button class="primary-btn" style="padding: 6px 12px" onclick="openPcDetailModalById(${t.id})">Detail</button></td>
         </tr>`;
     }).join('');
     
@@ -252,14 +259,58 @@ function renderPettyCash() {
     document.getElementById('pc-balance').textContent = formatIDR(totalIn - totalOut);
 }
 
-// --- MODALS ---
+// --- PETTY CASH MODALS ---
+function openPcDetailModalById(id) { 
+    const t = allPettyCash.find(x => x.id === id); 
+    if(t) openPcDetailModal(t); 
+}
+
+function openPcDetailModal(t) {
+    document.getElementById('pc_det_date').textContent = t.date.split('T')[0];
+    document.getElementById('pc_det_desc').textContent = t.description;
+    
+    const typeEl = document.getElementById('pc_det_type');
+    typeEl.textContent = t.type;
+    typeEl.style.background = t.type === 'IN' ? '#D1FAE5' : '#FEE2E2';
+    typeEl.style.color = t.type === 'IN' ? '#065F46' : '#991B1B';
+
+    document.getElementById('pc_det_amount').textContent = formatIDR(t.amount);
+    document.getElementById('pc_det_amount').className = t.type === 'IN' ? 'text-green text-lg' : 'text-red text-lg';
+
+    document.getElementById('btn-edit-pc').onclick = () => openEditPcModal(t);
+    document.getElementById('btn-del-pc').onclick = () => deletePettyCash(t.id);
+    document.getElementById('pc-detail-modal').classList.remove('hidden');
+}
+
+function closePcDetailModal() { document.getElementById('pc-detail-modal').classList.add('hidden'); }
+
+function openPcModal() {
+    document.getElementById('pc-form').reset();
+    document.getElementById('pc_id').value = "";
+    document.getElementById('pc-modal-title').textContent = "Add Petty Cash";
+    document.getElementById('pc-modal').classList.remove('hidden');
+}
+
+function openEditPcModal(t) {
+    closePcDetailModal();
+    document.getElementById('pc_id').value = t.id;
+    document.getElementById('pc-modal-title').textContent = "Edit Petty Cash";
+    document.getElementById('pc_date').value = t.date.split('T')[0];
+    document.getElementById('pc_desc').value = t.description;
+    document.getElementById('pc_type').value = t.type;
+    document.getElementById('pc_amount').value = t.amount;
+    document.getElementById('pc-modal').classList.remove('hidden');
+}
+function closePcModal() { document.getElementById('pc-modal').classList.add('hidden'); }
+
+// --- BOOKING MODALS ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
 function openDetailModal(b) {
     document.getElementById('det_name').textContent = b.client_name;
     document.getElementById('det_type').textContent = b.customer_type;
     document.getElementById('det_phone').textContent = b.client_phone;
-    document.getElementById('det_email').textContent = b.client_email || "N/A"; // Crash fix handled here safely
+    document.getElementById('det_email').textContent = b.client_email || "N/A"; 
     document.getElementById('det_date').textContent = b.date.split('T')[0];
     document.getElementById('det_time').textContent = `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`;
     document.getElementById('det_total').textContent = formatIDR(b.total_price);
@@ -274,12 +325,6 @@ function openDetailModal(b) {
 }
 
 function closeDetailModal() { document.getElementById('detail-modal').classList.add('hidden'); }
-
-function openPcModal() {
-    document.getElementById('pc-form').reset();
-    document.getElementById('pc-modal').classList.remove('hidden');
-}
-function closePcModal() { document.getElementById('pc-modal').classList.add('hidden'); }
 
 function calcRemaining() {
     const p = parseFloat(document.getElementById('total_price').value) || 0;
@@ -314,7 +359,7 @@ function openEditModal(b) {
 
 function closeBookingModal() { document.getElementById('booking-modal').classList.add('hidden'); }
 
-// --- FORMS & API ---
+// --- API SUBMISSIONS ---
 const bookingForm = document.getElementById('booking-form');
 if(bookingForm) {
     bookingForm.addEventListener('submit', async (e) => {
@@ -330,6 +375,8 @@ if(bookingForm) {
             total_price: parseFloat(document.getElementById('total_price').value) || 0,
             dp_paid: parseFloat(document.getElementById('dp_paid').value) || 0
         };
+        if(!payload.customer_type) return showAlert("Please select Customer Type", true);
+
         const bookingId = document.getElementById('booking_id').value;
         try {
             await safeFetch(bookingId ? `${API_URL}/bookings/${bookingId}` : `${API_URL}/bookings`, { 
@@ -354,17 +401,18 @@ const pcForm = document.getElementById('pc-form');
 if(pcForm) {
     pcForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const pcId = document.getElementById('pc_id').value;
+        const payload = {
+            date: document.getElementById('pc_date').value,
+            description: document.getElementById('pc_desc').value.trim(),
+            type: document.getElementById('pc_type').value,
+            amount: parseFloat(document.getElementById('pc_amount').value)
+        };
         try {
-            await safeFetch(`${API_URL}/petty_cash`, { 
-                method: 'POST', headers: getHeaders(), 
-                body: JSON.stringify({
-                    date: document.getElementById('pc_date').value,
-                    description: document.getElementById('pc_desc').value.trim(),
-                    type: document.getElementById('pc_type').value,
-                    amount: parseFloat(document.getElementById('pc_amount').value)
-                }) 
+            await safeFetch(pcId ? `${API_URL}/petty_cash/${pcId}` : `${API_URL}/petty_cash`, { 
+                method: pcId ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(payload) 
             });
-            showAlert("Transaction added!");
+            showAlert(pcId ? "Transaction updated!" : "Transaction added!");
             closePcModal();
         } catch (err) { showAlert(err.message, true); }
     });
@@ -375,6 +423,7 @@ async function deletePettyCash(id) {
     try {
         await safeFetch(`${API_URL}/petty_cash/${id}`, { method: 'DELETE', headers: getHeaders() });
         showAlert("Transaction deleted");
+        closePcDetailModal();
     } catch(err) { showAlert(err.message, true); }
 }
 
