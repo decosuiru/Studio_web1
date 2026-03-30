@@ -43,7 +43,7 @@
                     <h2 id="section-title">Calendar</h2>
                 </div>
                 <div class="header-right">
-                    <span id="sync-status" class="sync-indicator">🟢 Live</span>
+                    <span id="sync-status" class="sync-indicator">🟢 Live Sync On</span>
                     <button class="primary-btn shadow-btn" onclick="openBookingModal()">+ New</button>
                 </div>
             </header>
@@ -63,7 +63,8 @@
             <section id="bookings-section" class="section hidden">
                 <div class="table-container">
                     <table id="bookings-table">
-                        <thead><tr><th>Date</th><th class="hide-mobile">Time</th><th>Client</th><th class="hide-mobile">Type</th><th class="hide-mobile">Received</th><th class="hide-mobile">Status</th><th>Action</th></tr></thead>
+                        <!-- Removed hide-mobile from Status -->
+                        <thead><tr><th>Date</th><th class="hide-mobile">Time</th><th>Client</th><th class="hide-mobile">Type</th><th class="hide-mobile">Received</th><th>Status</th><th>Action</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -78,7 +79,8 @@
                 <h3 class="mt-20 mb-15">Client Transactions</h3>
                 <div class="table-container">
                     <table id="finance-table">
-                        <thead><tr><th>Date</th><th>Client Info</th><th class="hide-mobile">Total</th><th class="hide-mobile">Received</th><th class="hide-mobile">Remaining</th><th>Action</th></tr></thead>
+                        <!-- Changed Action to Status -->
+                        <thead><tr><th>Date</th><th>Client Info</th><th class="hide-mobile">Total</th><th class="hide-mobile">Received</th><th class="hide-mobile">Remaining</th><th>Status</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -144,7 +146,7 @@
         </div>
     </div>
 
-    <!-- [NEW] PETTY CASH DETAIL MODAL -->
+    <!-- PETTY CASH DETAIL MODAL -->
     <div id="pc-detail-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Transaction Details</h3>
