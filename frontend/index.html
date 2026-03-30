@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Studio Dashboard</title>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
-    <!-- [NEW] Socket.IO Client -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -29,8 +28,9 @@
             <h2 class="brand">StudioPro</h2>
             <nav>
                 <button class="nav-btn" onclick="showSection('calendar')">📅 Calendar</button>
-                <button class="nav-btn" onclick="showSection('bookings')">📋 List View</button>
+                <button class="nav-btn" onclick="showSection('bookings')">📋 Bookings</button>
                 <button class="nav-btn admin-only" onclick="showSection('finance')">💰 Finance</button>
+                <button class="nav-btn admin-only" onclick="showSection('pettycash')">💵 Petty Cash</button>
                 <button class="nav-btn admin-only" onclick="showSection('accounts')">👥 Accounts</button>
             </nav>
             <button class="logout-btn" onclick="logout()">Logout</button>
@@ -38,27 +38,25 @@
 
         <main class="content">
             <header>
-                <div style="display: flex; align-items: center; gap: 15px;">
+                <div class="header-left">
                     <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
                     <h2 id="section-title">Calendar</h2>
                 </div>
                 <div class="header-right">
-                    <!-- Real-time indicator -->
-                    <span id="sync-status" style="font-size: 12px; color: #22c55e; margin-right: 10px;">🟢 Live Sync On</span>
-                    <button class="primary-btn" onclick="openBookingModal()">+ New Booking</button>
-                    <div id="user-info" style="font-size: 13px;"></div>
+                    <span id="sync-status" class="sync-indicator">🟢 Live Sync On</span>
+                    <button class="primary-btn shadow-btn" onclick="openBookingModal()">+ New</button>
                 </div>
             </header>
 
+            <!-- SECTIONS -->
             <section id="calendar-section" class="section active">
-                <div class="table-container"><div id="calendar"></div></div>
+                <div class="table-container calendar-wrapper"><div id="calendar"></div></div>
             </section>
 
             <section id="bookings-section" class="section hidden">
                 <div class="table-container">
                     <table id="bookings-table">
-                        <!-- Removed Studio Column -->
-                        <thead><tr><th>Date</th><th>Time</th><th>Client</th><th>Status</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Time</th><th>Client</th><th>Type</th><th>Total Received</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -66,35 +64,46 @@
 
             <section id="finance-section" class="section hidden">
                 <div class="cards-grid">
-                    <div class="card"><h3>Total Income</h3><p class="amount" id="fin-income">Rp 0</p></div>
-                    <div class="card"><h3>DP Received</h3><p class="amount" id="fin-dp">Rp 0</p></div>
-                    <div class="card"><h3>Unpaid Balance</h3><p class="amount danger-text" id="fin-remain">Rp 0</p></div>
+                    <div class="card"><h3>Total Gross Booking</h3><p class="amount" id="fin-income">Rp 0</p></div>
+                    <div class="card bg-green"><h3>Total Received</h3><p class="amount text-green" id="fin-dp">Rp 0</p></div>
+                    <div class="card bg-red"><h3>Unpaid Balance</h3><p class="amount text-red" id="fin-remain">Rp 0</p></div>
                 </div>
-                
-                <!-- [NEW] Client Finance Details Table -->
-                <h3 style="margin-top: 30px; margin-bottom: 15px;">Client Transactions</h3>
-                <div class="table-container">
-                    <table id="finance-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Client Info</th>
-                                <th>Total Price</th>
-                                <th>DP Paid</th>
-                                <th>Remaining</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+            </section>
+
+            <section id="pettycash-section" class="section hidden">
+                <div class="cards-grid mb-20">
+                    <div class="card bg-green"><h3>Total Cash In</h3><p class="amount text-green" id="pc-in">Rp 0</p></div>
+                    <div class="card bg-red"><h3>Total Cash Out</h3><p class="amount text-red" id="pc-out">Rp 0</p></div>
+                    <div class="card"><h3>Current Balance</h3><p class="amount" id="pc-balance">Rp 0</p></div>
+                </div>
+                <div class="cards-grid" style="grid-template-columns: 1fr 2fr;">
+                    <div class="card text-left">
+                        <h3>+ Add Transaction</h3>
+                        <form id="pc-form" class="mt-15">
+                            <input type="date" id="pc_date" required>
+                            <input type="text" id="pc_desc" placeholder="Description" required>
+                            <select id="pc_type" required>
+                                <option value="IN">Cash IN (+)</option>
+                                <option value="OUT">Cash OUT (-)</option>
+                            </select>
+                            <input type="number" id="pc_amount" placeholder="Amount (Rp)" required>
+                            <button type="submit" class="primary-btn w-full">Save</button>
+                        </form>
+                    </div>
+                    <div class="table-container">
+                        <table id="pc-table">
+                            <thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Actions</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
             <section id="accounts-section" class="section hidden">
                 <div class="cards-grid" style="grid-template-columns: 1fr 2fr;">
-                    <div class="card" style="text-align: left;">
+                    <div class="card text-left">
                         <h3>+ Add Account</h3>
-                        <form id="account-form">
+                        <form id="account-form" class="mt-15">
                             <select id="acc_role" required><option value="Admin">Admin</option><option value="Staff">Staff</option></select>
                             <input type="email" id="acc_email" placeholder="Email" required>
                             <input type="password" id="acc_password" placeholder="Password" required>
@@ -116,20 +125,20 @@
     <div id="detail-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Booking Details</h3>
-            <div class="detail-grid">
+            <div class="detail-grid mt-15">
                 <div><span class="detail-label">Client Name:</span> <strong id="det_name"></strong></div>
                 <div><span class="detail-label">Status:</span> <span id="det_status" class="status-pill"></span></div>
+                <div><span class="detail-label">Customer Type:</span> <strong id="det_type"></strong></div>
                 <div><span class="detail-label">Phone:</span> <span id="det_phone"></span></div>
-                <div><span class="detail-label">Email:</span> <span id="det_email"></span></div>
                 <div><span class="detail-label">Date:</span> <strong id="det_date"></strong></div>
                 <div><span class="detail-label">Time:</span> <strong id="det_time"></strong></div>
-                <div><span class="detail-label">Total Price:</span> <strong id="det_total"></strong></div>
-                <div><span class="detail-label">DP Paid:</span> <strong id="det_dp"></strong></div>
-                <div><span class="detail-label">Remaining:</span> <strong class="danger-text" id="det_remain"></strong></div>
+                <div><span class="detail-label">Total Booking Price:</span> <strong id="det_total"></strong></div>
+                <div><span class="detail-label text-green">Total Received:</span> <strong class="text-green text-lg" id="det_dp"></strong></div>
+                <div><span class="detail-label text-red">Remaining:</span> <strong class="text-red" id="det_remain"></strong></div>
             </div>
-            <div class="modal-actions">
+            <div class="modal-actions mt-20">
                 <button type="button" class="del-btn" id="delete-btn" onclick="deleteFromModal()">Delete</button>
-                <button type="button" style="background:#ccc" onclick="closeDetailModal()">Close</button>
+                <button type="button" class="cancel-btn" onclick="closeDetailModal()">Close</button>
                 <button type="button" class="primary-btn" id="btn-edit-from-detail">Edit</button>
             </div>
         </div>
@@ -139,23 +148,36 @@
     <div id="booking-modal" class="modal hidden">
         <div class="modal-content">
             <h3 id="modal-title">New Booking</h3>
-            <form id="booking-form">
+            <form id="booking-form" class="mt-15">
                 <input type="hidden" id="booking_id">
-                <input type="text" id="client_name" placeholder="Client Name" required>
-                <input type="text" id="client_phone" placeholder="Phone Number" required>
+                <div class="form-group">
+                    <select id="customer_type" required>
+                        <option value="" disabled selected>Select Customer Type *</option>
+                        <option value="Regular">Regular</option>
+                        <option value="Vendor">Vendor</option>
+                        <option value="Management">Management</option>
+                    </select>
+                </div>
+                <input type="text" id="client_name" placeholder="Client Name *" required>
+                <input type="text" id="client_phone" placeholder="Phone Number *" required>
                 <input type="email" id="client_email" placeholder="Email (Optional)">
                 <div class="time-group">
                     <input type="date" id="date" required>
-                    <input type="time" id="start_time" required> <span>to</span> <input type="time" id="end_time" required>
+                    <input type="time" id="start_time" required> <span class="to-txt">to</span> <input type="time" id="end_time" required>
                 </div>
-                <!-- Removed Studio Select -->
                 <div class="time-group">
-                    <input type="number" id="total_price" placeholder="Total Price" oninput="calcRemaining()" required>
-                    <input type="number" id="dp_paid" placeholder="DP Paid" oninput="calcRemaining()" required>
+                    <div>
+                        <span class="detail-label">Total Price *</span>
+                        <input type="number" id="total_price" placeholder="Rp" oninput="calcRemaining()" required>
+                    </div>
+                    <div>
+                        <span class="detail-label text-green">Total Received (DP) *</span>
+                        <input type="number" id="dp_paid" placeholder="Rp" oninput="calcRemaining()" required>
+                    </div>
                 </div>
-                <p class="calc-text">Remaining: <strong id="remaining-text">Rp 0</strong></p>
+                <p class="calc-text text-red">Remaining: <strong id="remaining-text">Rp 0</strong></p>
                 <div class="modal-actions">
-                    <button type="button" style="background:#ccc" onclick="closeBookingModal()">Cancel</button>
+                    <button type="button" class="cancel-btn" onclick="closeBookingModal()">Cancel</button>
                     <button type="submit" class="primary-btn">Save</button>
                 </div>
             </form>
