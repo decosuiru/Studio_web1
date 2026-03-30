@@ -1,14 +1,12 @@
-// ⚠️ CHANGE THIS URL WHEN DEPLOYING TO RAILWAY
-const API_URL = 'https://studioweb-production.up.railway.app/api'; 
-// Example: 'https://my-backend.up.railway.app/api'
-
-// [NEW] Setup Socket URL (remove /api from the end to get the root server URL)
-const SOCKET_URL = API_URL.replace('/api', '');
+const API_URL = 'http://localhost:3000/api'; 
+const SOCKET_URL = API_URL.https://studioweb-production.up.railway.app/api('/api', '');
 
 let currentUser, currentToken;
 let fullCalendarInstance = null;
-let allBookings =[];
+let allBookings = [];
+let allPettyCash =[];
 let socket = null;
+let inactivityTimer; // Auto-logout timer
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 
@@ -28,19 +26,27 @@ async function safeFetch(url, options = {}) {
     try {
         const res = await fetch(url, options);
         const contentType = res.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-            throw new Error("API returned non-JSON response. Check your API URL.");
-        }
+        if (!contentType || !contentType.includes("application/json")) throw new Error("API Route Error");
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Server error");
         return data;
-    } catch (err) {
-        console.error("Fetch Error:", err);
-        throw err;
-    }
+    } catch (err) { throw err; }
 }
 
-// --- INIT & AUTH ---
+// --- AUTO LOGOUT & AUTH ---
+function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    if (localStorage.getItem('token')) {
+        inactivityTimer = setTimeout(logout, 15 * 60 * 1000); // 15 Minutes
+    }
+}
+// Listen for user activity
+window.onload = resetInactivityTimer;
+document.onmousemove = resetInactivityTimer;
+document.onkeypress = resetInactivityTimer;
+document.onclick = resetInactivityTimer;
+document.onscroll = resetInactivityTimer;
+
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
@@ -54,7 +60,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     } catch (err) { showAlert(err.message, true); }
 });
 
-function logout() { localStorage.clear(); window.location.reload(); }
+function logout() { 
+    localStorage.clear(); 
+    window.location.reload(); 
+}
 
 function initApp() {
     currentToken = localStorage.getItem('token');
@@ -63,110 +72,88 @@ function initApp() {
     currentUser = JSON.parse(localStorage.getItem('user'));
     document.getElementById('login-view').classList.add('hidden');
     document.getElementById('app-view').classList.remove('hidden');
-    document.getElementById('user-info').textContent = `${currentUser.name} (${currentUser.role})`;
-
+    
     if (currentUser.role !== 'Admin') {
         document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
     }
-
-    // [NEW] Initialize Real-Time WebSockets
     initRealTime();
-    
     showSection('calendar');
+    resetInactivityTimer();
 }
 
-// [NEW] REAL-TIME SYNC LOGIC
 function initRealTime() {
     if (!socket) {
         socket = io(SOCKET_URL);
+        socket.on('connect', () => document.getElementById('sync-status').style.display = 'block');
+        socket.on('disconnect', () => document.getElementById('sync-status').style.display = 'none');
         
-        socket.on('connect', () => {
-            document.getElementById('sync-status').textContent = "🟢 Live Sync On";
-            document.getElementById('sync-status').style.color = "#22c55e";
-        });
-
-        socket.on('disconnect', () => {
-            document.getElementById('sync-status').textContent = "🔴 Sync Offline";
-            document.getElementById('sync-status').style.color = "#ef4444";
-        });
-
-        // When someone else makes a change, refresh data instantly!
         socket.on('bookings_changed', async () => {
             await fetchAllBookings();
-            
-            // Re-render only the active screen so the user's view updates magically
-            const activeSection = document.querySelector('.section:not(.hidden)').id.replace('-section', '');
-            if (activeSection === 'calendar') renderCalendar();
-            if (activeSection === 'bookings') renderListTable();
-            if (activeSection === 'finance' && currentUser.role === 'Admin') renderFinanceTable();
+            refreshActiveSection();
+        });
+        socket.on('finance_changed', async () => {
+            if (currentUser.role === 'Admin') await fetchPettyCash();
+            refreshActiveSection();
         });
     }
 }
 
 // --- NAVIGATION & FETCH ---
 function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    sidebar.classList.toggle('open');
-    overlay.classList.toggle('active');
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('active');
 }
 
 async function showSection(section) {
     document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
     document.getElementById(`${section}-section`).classList.remove('hidden');
-    document.getElementById('section-title').textContent = section.charAt(0).toUpperCase() + section.slice(1);
+    document.getElementById('section-title').textContent = section.charAt(0).toUpperCase() + section.slice(1).replace('cash', ' Cash');
 
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    if (sidebar.classList.contains('open')) {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('active');
-    }
+    if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
 
     await fetchAllBookings();
+    if (currentUser.role === 'Admin' && section === 'pettycash') await fetchPettyCash();
 
-    if (section === 'calendar') renderCalendar();
-    if (section === 'bookings') renderListTable();
-    if (section === 'finance' && currentUser.role === 'Admin') renderFinanceTable();
-    if (section === 'accounts' && currentUser.role === 'Admin') renderAccountsTable();
+    refreshActiveSection();
+}
+
+function refreshActiveSection() {
+    const active = document.querySelector('.section:not(.hidden)').id.replace('-section', '');
+    if (active === 'calendar') renderCalendar();
+    if (active === 'bookings') renderListTable();
+    if (active === 'finance' && currentUser.role === 'Admin') renderFinanceTable();
+    if (active === 'pettycash' && currentUser.role === 'Admin') renderPettyCash();
+    if (active === 'accounts' && currentUser.role === 'Admin') renderAccountsTable();
 }
 
 async function fetchAllBookings() {
-    try {
-        allBookings = await safeFetch(`${API_URL}/bookings`, { headers: getHeaders() });
-    } catch (err) { console.error("Error fetching bookings"); }
+    try { allBookings = await safeFetch(`${API_URL}/bookings`, { headers: getHeaders() }); } catch (err) {}
+}
+async function fetchPettyCash() {
+    try { allPettyCash = await safeFetch(`${API_URL}/petty_cash`, { headers: getHeaders() }); } catch (err) {}
 }
 
-// --- RENDERING ---
+// --- RENDERING CALENDAR & TABLES ---
 function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
     const events = allBookings.map(b => ({
-        id: b.id, title: b.client_name, // Removed Studio from title
+        id: b.id, title: `${b.client_name} (${b.customer_type})`, 
         start: `${b.date.split('T')[0]}T${b.start_time}`, end: `${b.date.split('T')[0]}T${b.end_time}`,
-        backgroundColor: b.status === 'Paid' ? '#22c55e' : (b.status === 'Partial' ? '#f97316' : '#ef4444'),
+        backgroundColor: b.status === 'Paid' ? '#10B981' : (b.status === 'Partial' ? '#F59E0B' : '#EF4444'),
         extendedProps: b
     }));
 
     if (fullCalendarInstance) fullCalendarInstance.destroy();
     fullCalendarInstance = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth', height: '100%', stickyHeaderDates: true,
-        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
-        editable: true, events: events,
+        initialView: window.innerWidth < 768 ? 'timeGridDay' : 'dayGridMonth', // Better mobile view
+        height: '100%', stickyHeaderDates: true,
+        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+        editable: false, // [UPDATE 3] DRAG & DROP DISABLED
+        events: events,
         eventClick: (info) => openDetailModal(info.event.extendedProps),
-        eventDrop: async (info) => {
-            const b = info.event.extendedProps;
-            const newDate = info.event.startStr.split('T')[0];
-            const newStart = info.event.startStr.split('T')[1].substring(0,5);
-            const newEnd = info.event.endStr ? info.event.endStr.split('T')[1].substring(0,5) : b.end_time;
-            try {
-                await safeFetch(`${API_URL}/bookings/${b.id}`, {
-                    method: 'PUT', headers: getHeaders(),
-                    body: JSON.stringify({ ...b, date: newDate, start_time: newStart, end_time: newEnd })
-                });
-                showAlert("Moved Successfully");
-                // Local re-fetch is optional since socket will trigger it anyway, but it ensures smoothness
-                await fetchAllBookings(); 
-            } catch (err) { info.revert(); showAlert(err.message, true); }
+        dateClick: (info) => { 
+            // [UPDATE 4] Click date to jump to week view
+            fullCalendarInstance.changeView('timeGridWeek', info.dateStr);
         }
     });
     fullCalendarInstance.render();
@@ -178,56 +165,47 @@ function renderListTable() {
             <td>${b.date.split('T')[0]}</td>
             <td>${b.start_time.substring(0,5)}</td>
             <td><strong>${b.client_name}</strong></td>
+            <td>${b.customer_type}</td>
+            <td class="text-green">${formatIDR(b.dp_paid)}</td>
             <td><span class="status-pill status-${b.status}">${b.status}</span></td>
-            <td><button class="primary-btn" style="padding: 5px" onclick="openDetailModalById(${b.id})">Detail</button></td>
+            <td><button class="primary-btn" style="padding: 6px 12px" onclick="openDetailModalById(${b.id})">Detail</button></td>
         </tr>
     `).join('');
 }
 
 function renderFinanceTable() {
     let gross = 0, dp = 0, remain = 0;
-    const tbody = document.querySelector('#finance-table tbody');
-    let tableHTML = '';
-
-    allBookings.forEach(b => { 
-        gross += parseFloat(b.total_price); 
-        dp += parseFloat(b.dp_paid); 
-        remain += parseFloat(b.remaining_payment); 
-        
-        // Build rows for the client details table
-        tableHTML += `
-            <tr>
-                <td>${b.date.split('T')[0]}</td>
-                <td>
-                    <strong>${b.client_name}</strong><br>
-                    <span style="font-size: 12px; color: #666;">📞 ${b.client_phone}</span><br>
-                    <span style="font-size: 12px; color: #888;">${b.client_email ? '✉️ ' + b.client_email : ''}</span>
-                </td>
-                <td>${formatIDR(b.total_price)}</td>
-                <td>${formatIDR(b.dp_paid)}</td>
-                <td class="danger-text"><strong>${formatIDR(b.remaining_payment)}</strong></td>
-                <td><span class="status-pill status-${b.status}">${b.status}</span></td>
-            </tr>
-        `;
-    });
-
-    // Inject the rows into the table
-    if (tbody) tbody.innerHTML = tableHTML;
-
-    // Update the summary cards
+    allBookings.forEach(b => { gross += parseFloat(b.total_price); dp += parseFloat(b.dp_paid); remain += parseFloat(b.remaining_payment); });
     document.getElementById('fin-income').textContent = formatIDR(gross);
     document.getElementById('fin-dp').textContent = formatIDR(dp);
     document.getElementById('fin-remain').textContent = formatIDR(remain);
 }
 
-// --- MODALS ---
-function openDetailModalById(id) {
-    const b = allBookings.find(x => x.id === id);
-    if(b) openDetailModal(b);
+function renderPettyCash() {
+    let totalIn = 0, totalOut = 0;
+    document.querySelector('#pc-table tbody').innerHTML = allPettyCash.map(t => {
+        const amt = parseFloat(t.amount);
+        if (t.type === 'IN') totalIn += amt; else totalOut += amt;
+        return `<tr>
+            <td>${t.date.split('T')[0]}</td>
+            <td>${t.description}</td>
+            <td><span class="role-pill" style="background:${t.type==='IN'?'#D1FAE5':'#FEE2E2'}; color:${t.type==='IN'?'#065F46':'#991B1B'}">${t.type}</span></td>
+            <td class="${t.type==='IN'?'text-green':'text-red'}">${t.type==='IN'?'+':'-'} ${formatIDR(amt)}</td>
+            <td><button class="del-btn" style="padding: 6px 12px" onclick="deletePettyCash(${t.id})">Del</button></td>
+        </tr>`;
+    }).join('');
+    
+    document.getElementById('pc-in').textContent = formatIDR(totalIn);
+    document.getElementById('pc-out').textContent = formatIDR(totalOut);
+    document.getElementById('pc-balance').textContent = formatIDR(totalIn - totalOut);
 }
+
+// --- MODALS ---
+function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
 function openDetailModal(b) {
     document.getElementById('det_name').textContent = b.client_name;
+    document.getElementById('det_type').textContent = b.customer_type;
     document.getElementById('det_phone').textContent = b.client_phone;
     document.getElementById('det_email').textContent = b.client_email || "N/A";
     document.getElementById('det_date').textContent = b.date.split('T')[0];
@@ -235,7 +213,6 @@ function openDetailModal(b) {
     document.getElementById('det_total').textContent = formatIDR(b.total_price);
     document.getElementById('det_dp').textContent = formatIDR(b.dp_paid);
     document.getElementById('det_remain').textContent = formatIDR(b.remaining_payment);
-    
     document.getElementById('det_status').textContent = b.status;
     document.getElementById('det_status').className = `status-pill status-${b.status}`;
 
@@ -264,6 +241,7 @@ function openEditModal(b) {
     closeDetailModal(); 
     document.getElementById('booking_id').value = b.id;
     document.getElementById('modal-title').textContent = "Edit Booking";
+    document.getElementById('customer_type').value = b.customer_type;
     document.getElementById('client_name').value = b.client_name;
     document.getElementById('client_phone').value = b.client_phone;
     document.getElementById('client_email').value = b.client_email || "";
@@ -278,10 +256,11 @@ function openEditModal(b) {
 
 function closeBookingModal() { document.getElementById('booking-modal').classList.add('hidden'); }
 
-// --- FORMS & CRUD ---
+// --- API SUBMISSIONS ---
 document.getElementById('booking-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const payload = {
+        customer_type: document.getElementById('customer_type').value,
         client_name: document.getElementById('client_name').value.trim(),
         client_phone: document.getElementById('client_phone').value.trim(),
         client_email: document.getElementById('client_email').value.trim(),
@@ -291,15 +270,15 @@ document.getElementById('booking-form').addEventListener('submit', async (e) => 
         total_price: parseFloat(document.getElementById('total_price').value) || 0,
         dp_paid: parseFloat(document.getElementById('dp_paid').value) || 0
     };
+    if(!payload.customer_type) return showAlert("Please select Customer Type", true);
 
     const bookingId = document.getElementById('booking_id').value;
-    const url = bookingId ? `${API_URL}/bookings/${bookingId}` : `${API_URL}/bookings`;
-
     try {
-        await safeFetch(url, { method: bookingId ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
+        await safeFetch(bookingId ? `${API_URL}/bookings/${bookingId}` : `${API_URL}/bookings`, { 
+            method: bookingId ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(payload) 
+        });
         showAlert(bookingId ? "Updated!" : "Saved!");
         closeBookingModal();
-        // WebSockets will automatically refresh the screen for us!
     } catch (err) { showAlert(err.message, true); }
 });
 
@@ -309,48 +288,59 @@ async function deleteFromModal(id) {
         await safeFetch(`${API_URL}/bookings/${id}`, { method: 'DELETE', headers: getHeaders() });
         showAlert("Deleted!");
         closeDetailModal();
-        // WebSockets will automatically refresh the screen for us!
     } catch (err) { showAlert(err.message, true); }
 }
 
+document.getElementById('pc-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+        await safeFetch(`${API_URL}/petty_cash`, { 
+            method: 'POST', headers: getHeaders(), 
+            body: JSON.stringify({
+                date: document.getElementById('pc_date').value,
+                description: document.getElementById('pc_desc').value.trim(),
+                type: document.getElementById('pc_type').value,
+                amount: parseFloat(document.getElementById('pc_amount').value)
+            }) 
+        });
+        showAlert("Transaction added!");
+        document.getElementById('pc-form').reset();
+    } catch (err) { showAlert(err.message, true); }
+});
+
+async function deletePettyCash(id) {
+    if(!confirm("Delete transaction?")) return;
+    try {
+        await safeFetch(`${API_URL}/petty_cash/${id}`, { method: 'DELETE', headers: getHeaders() });
+        showAlert("Transaction deleted");
+    } catch(err) { showAlert(err.message, true); }
+}
+
+// ... (Accounts Logic exactly same as before) ...
 async function renderAccountsTable() {
     try {
         const users = await safeFetch(`${API_URL}/users`, { headers: getHeaders() });
         document.querySelector('#accounts-table tbody').innerHTML = users.map(u => `
-            <tr>
-                <td><strong>${u.email}</strong></td>
-                <td><span class="role-pill role-${u.role}">${u.role}</span></td>
-                <td>${new Date(u.created_at).toLocaleDateString()}</td>
-                <td><button class="del-btn" style="padding:5px 10px" onclick="deleteAccount(${u.id})">Delete</button></td>
-            </tr>
+            <tr><td><strong>${u.email}</strong></td><td><span class="role-pill">${u.role}</span></td>
+            <td>${new Date(u.created_at).toLocaleDateString()}</td>
+            <td><button class="del-btn" style="padding:6px 12px" onclick="deleteAccount(${u.id})">Del</button></td></tr>
         `).join('');
-    } catch (err) { showAlert("Error fetching accounts", true); }
+    } catch (err) { }
 }
 
 document.getElementById('account-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
-        await safeFetch(`${API_URL}/users`, { 
-            method: 'POST', headers: getHeaders(), 
-            body: JSON.stringify({
-                role: document.getElementById('acc_role').value,
-                email: document.getElementById('acc_email').value.trim(),
-                password: document.getElementById('acc_password').value
-            }) 
-        });
-        showAlert("Account created!");
-        document.getElementById('account-form').reset();
-        renderAccountsTable();
+        await safeFetch(`${API_URL}/users`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({
+            role: document.getElementById('acc_role').value, email: document.getElementById('acc_email').value.trim(), password: document.getElementById('acc_password').value
+        }) });
+        showAlert("Account created!"); document.getElementById('account-form').reset(); renderAccountsTable();
     } catch (err) { showAlert(err.message, true); }
 });
 
 async function deleteAccount(id) {
-    if (!confirm("Delete this account?")) return;
-    try {
-        await safeFetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: getHeaders() });
-        showAlert("Account deleted!");
-        renderAccountsTable();
-    } catch (err) { showAlert(err.message, true); }
+    if(!confirm("Delete account?")) return;
+    try { await safeFetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: getHeaders() }); renderAccountsTable(); } catch (err) { showAlert(err.message, true); }
 }
 
 window.onload = () => { if(localStorage.getItem('token')) initApp(); }
