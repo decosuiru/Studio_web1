@@ -5,15 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Studio Dashboard</title>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <!-- [NEW] Socket.IO Client -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="alert-box" class="alert hidden"></div>
 
-    <!-- LOGIN PAGE -->
     <div id="login-view" class="view active">
         <div class="login-card">
-            <h2 class="login-title">Studio Ciwastra</h2>
+            <h2 class="login-title">Studio Log In</h2>
             <form id="login-form">
                 <input type="email" id="email" placeholder="Email Address" required>
                 <input type="password" id="password" placeholder="Password" required>
@@ -22,13 +23,8 @@
         </div>
     </div>
 
-    <!-- MAIN DASHBOARD -->
-    <!-- MAIN DASHBOARD -->
     <div id="app-view" class="view hidden">
-        
-        <!-- [NEW] Dark overlay for mobile sidebar -->
         <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
-
         <aside class="sidebar" id="sidebar">
             <h2 class="brand">StudioPro</h2>
             <nav>
@@ -41,13 +37,14 @@
         </aside>
 
         <main class="content">
-            <!-- [UPDATED] Header with Hamburger Menu -->
             <header>
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
                     <h2 id="section-title">Calendar</h2>
                 </div>
                 <div class="header-right">
+                    <!-- Real-time indicator -->
+                    <span id="sync-status" style="font-size: 12px; color: #22c55e; margin-right: 10px;">🟢 Live Sync On</span>
                     <button class="primary-btn" onclick="openBookingModal()">+ New Booking</button>
                     <div id="user-info" style="font-size: 13px;"></div>
                 </div>
@@ -60,7 +57,8 @@
             <section id="bookings-section" class="section hidden">
                 <div class="table-container">
                     <table id="bookings-table">
-                        <thead><tr><th>Date</th><th>Time</th><th>Client</th><th>Studio</th><th>Status</th><th>Actions</th></tr></thead>
+                        <!-- Removed Studio Column -->
+                        <thead><tr><th>Date</th><th>Time</th><th>Client</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -107,7 +105,6 @@
                 <div><span class="detail-label">Email:</span> <span id="det_email"></span></div>
                 <div><span class="detail-label">Date:</span> <strong id="det_date"></strong></div>
                 <div><span class="detail-label">Time:</span> <strong id="det_time"></strong></div>
-                <div><span class="detail-label">Studio:</span> <strong id="det_studio"></strong></div>
                 <div><span class="detail-label">Total Price:</span> <strong id="det_total"></strong></div>
                 <div><span class="detail-label">DP Paid:</span> <strong id="det_dp"></strong></div>
                 <div><span class="detail-label">Remaining:</span> <strong class="danger-text" id="det_remain"></strong></div>
@@ -133,11 +130,7 @@
                     <input type="date" id="date" required>
                     <input type="time" id="start_time" required> <span>to</span> <input type="time" id="end_time" required>
                 </div>
-                <select id="studio" required>
-                    <option value="Studio A">Studio A</option>
-                    <option value="Studio B">Studio B</option>
-                    <option value="Recording Room">Recording Room</option>
-                </select>
+                <!-- Removed Studio Select -->
                 <div class="time-group">
                     <input type="number" id="total_price" placeholder="Total Price" oninput="calcRemaining()" required>
                     <input type="number" id="dp_paid" placeholder="DP Paid" oninput="calcRemaining()" required>
