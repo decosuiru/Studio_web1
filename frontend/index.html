@@ -61,7 +61,12 @@
             </section>
 
             <section id="bookings-section" class="section hidden">
-                <div class="table-container">
+                <!-- [NEW] TABS FOR BOOKINGS -->
+                <div class="tab-container">
+                    <button id="tab-booking-upcoming" class="tab-btn active-tab" onclick="toggleBookingView('upcoming')">Upcoming</button>
+                    <button id="tab-booking-recent" class="tab-btn" onclick="toggleBookingView('recent')">Recent (Past)</button>
+                </div>
+                <div class="table-container mt-15">
                     <table id="bookings-table">
                         <thead><tr><th>Date</th><th class="hide-mobile">Time</th><th>Client</th><th class="hide-mobile">Type</th><th class="hide-mobile">Received</th><th>Status</th><th>Action</th></tr></thead>
                         <tbody></tbody>
@@ -76,7 +81,12 @@
                     <div class="card bg-red"><h3>Unpaid Balance</h3><p class="amount text-red" id="fin-remain">Rp 0</p></div>
                 </div>
                 <h3 class="mt-20 mb-15">Client Transactions</h3>
-                <div class="table-container">
+                <!-- [NEW] TABS FOR FINANCE -->
+                <div class="tab-container">
+                    <button id="tab-finance-upcoming" class="tab-btn active-tab" onclick="toggleFinanceView('upcoming')">Upcoming</button>
+                    <button id="tab-finance-recent" class="tab-btn" onclick="toggleFinanceView('recent')">Recent (Past)</button>
+                </div>
+                <div class="table-container mt-15">
                     <table id="finance-table">
                         <thead><tr><th>Date</th><th>Client Info</th><th class="hide-mobile">Total</th><th class="hide-mobile">Received</th><th class="hide-mobile">Remaining</th><th>Status</th></tr></thead>
                         <tbody></tbody>
@@ -214,12 +224,10 @@
                     </div>
                     <div>
                         <span class="detail-label text-green">Total Received *</span>
-                        <!-- [UPDATED] Uses handleManualDP instead of calcRemaining -->
                         <input type="number" id="dp_paid" placeholder="Rp" oninput="handleManualDP()" required>
                     </div>
                 </div>
 
-                <!-- [NEW] SETTLEMENT SECTION -->
                 <div id="settlement-section" class="hidden mt-15" style="padding: 15px; border-radius: 12px; background: #ECFDF5; border: 1px solid #D1FAE5; margin-bottom: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <span style="font-size: 13px; font-weight: 600; color: #065F46;">Add Settlement</span>
