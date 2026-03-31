@@ -8,7 +8,10 @@
 body { background: var(--bg); color: var(--text); overflow-x: hidden; width: 100%; position: relative;}
 
 .hidden { display: none !important; } .active { display: flex; }
-.alert { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; background: var(--primary); color: white; border-radius: 30px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; text-align: center; white-space: nowrap;}
+
+/* Alert Animation */
+@keyframes slideDown { from { top: -50px; opacity: 0; } to { top: 20px; opacity: 1; } }
+.alert { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; background: var(--primary); color: white; border-radius: 30px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; font-size: 14px; text-align: center; white-space: nowrap; animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);}
 .alert.error { background: var(--danger); }
 
 /* Layout */
@@ -49,7 +52,7 @@ button:active { transform: scale(0.97); }
 .cancel-btn { background: #E5E7EB; color: #374151; }
 .del-btn { background: var(--danger); color: white; }
 
-/* TABS [NEW] */
+/* TABS */
 .tab-container { display: flex; gap: 10px; flex-wrap: wrap;}
 .tab-btn { padding: 8px 16px; border: 1px solid #D1D5DB; background: white; color: #6B7280; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s;}
 .tab-btn.active-tab { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);}
@@ -70,9 +73,24 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
 .card h3 { color: #6B7280; font-size: 14px; margin-bottom: 10px; text-transform: uppercase; font-weight: 600;}
 .card .amount { font-size: 28px; font-weight: 800; color: var(--text); }
 
-/* Modals */
+/* --- 🌟 MODALS & CARD ANIMATIONS --- */
+
+@keyframes fadeBackdrop {
+    from { background: rgba(17, 24, 39, 0); backdrop-filter: blur(0px); }
+    to { background: rgba(17, 24, 39, 0.6); backdrop-filter: blur(4px); }
+}
+
+@keyframes popCard {
+    from { opacity: 0; transform: scale(0.95) translateY(15px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(17, 24, 39, 0.6); display: flex; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(4px);}
+.modal:not(.hidden) { animation: fadeBackdrop 0.25s ease-out forwards; }
+
 .modal-content { background: white; padding: 30px; border-radius: 24px; width: 90%; max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
+.modal:not(.hidden) .modal-content { animation: popCard 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; } /* Smooth spring effect */
+
 .detail-grid { display: grid; grid-template-columns: 1fr; gap: 12px; font-size: 15px;}
 .detail-grid > div { display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid #F3F4F6; align-items: center;}
 .detail-label { color: #6B7280; font-size: 14px; }
@@ -135,40 +153,4 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
     .fc-toolbar-chunk { display: flex; justify-content: center; width: 100%; align-items: center; position: relative;}
     .fc .fc-toolbar-title { color: #EF4444 !important; font-size: 1.2rem !important; font-weight: 600 !important; }
     
-    .fc .fc-button { display: inline-block !important; padding: 6px 10px !important; font-size: 12px !important; background: transparent !important; color: #EF4444 !important; border: 1px solid #EF4444 !important; box-shadow: none !important; margin: 0 2px;}
-    .fc .fc-button-active { background: #EF4444 !important; color: white !important;}
-
-    .fc-theme-standard th { border-bottom: 1px solid #E5E7EB !important; color: #9CA3AF !important; font-size: 11px; padding: 5px 0 !important;}
-    .fc-theme-standard td { border: none !important; }
-    .fc-scrollgrid { border: none !important; }
-    
-    .fc-daygrid-day-frame { display: flex; flex-direction: column; align-items: center; min-height: 40px !important; border: none !important; padding-top: 5px;}
-    .fc-daygrid-day-frame:hover { background: transparent;}
-    .fc-daygrid-day-top { justify-content: center !important; opacity: 1 !important;}
-    
-    .fc-daygrid-day-number { font-size: 16px; font-weight: 400; color: #1F2937; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; text-decoration: none !important; margin: 0 auto;}
-    .fc-day-today .fc-daygrid-day-frame { background: transparent !important; border: none !important; }
-    .fc-day-today .fc-daygrid-day-number { color: #EF4444; font-weight: 600;}
-    .selected-date .fc-daygrid-day-number { background: #EF4444 !important; color: white !important; border-radius: 50%; font-weight: 600;}
-    
-    .fc-daygrid-day-events { display: flex !important; justify-content: center; flex-direction: row; flex-wrap: wrap; gap: 4px; margin-top: 2px !important; min-height: 8px !important; width: 100%; position: static !important;}
-    .fc-daygrid-event-harness { display: block !important; }
-    
-    .fc-daygrid-event { 
-        position: relative;
-        background-color: #D1D5DB !important; 
-        width: 8px !important; 
-        height: 8px !important; 
-        border-radius: 50% !important; 
-        margin: 2px !important; 
-        padding: 0 !important; 
-        color: transparent !important; 
-        overflow: visible !important; 
-        border: none !important; 
-    }
-    .fc-daygrid-event::after { content: ''; position: absolute; top: -12px; right: -12px; bottom: -12px; left: -12px;}
-    .fc-daygrid-event-dot { display: none !important; }
-    .fc-event-title { display: none !important; }
-    
-    .mobile-only-list { display: block; border-top: 1px solid #F3F4F6; padding-top: 15px;}
-}
+    .fc .fc-button { display: inline-block !important; padding: 6px 10px !important; font-size: 12px !important; background: transparent !important; color: #EF4444 !important; border: 1px solid #EF4444 !important; box-shadow: non
