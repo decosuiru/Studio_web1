@@ -9,7 +9,11 @@ let allPettyCash =[];
 let socket = null;
 let inactivityTimer;
 let lastClickedDate = null; 
-let currentBaseDP = 0; // [NEW] Used for accurate settlement calculations
+let currentBaseDP = 0;
+
+// [NEW] View Modes for Tabs
+let viewModeBookings = 'upcoming';
+let viewModeFinance = 'upcoming';
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 
@@ -128,6 +132,29 @@ async function fetchPettyCash() {
     try { allPettyCash = await safeFetch(`${API_URL}/petty_cash`, { headers: getHeaders() }); } catch (err) { console.error(err); }
 }
 
+// [NEW] Date Check Logic: Returns true if booking has completely ended
+function isBookingRecent(dateStr, endTimeStr) {
+    const dateTimeStr = `${dateStr.split('T')[0]}T${endTimeStr}`;
+    const bookingEnd = new Date(dateTimeStr);
+    const now = new Date();
+    return bookingEnd < now; // If it's in the past, it's 'recent'
+}
+
+// [NEW] Tab Toggles
+function toggleBookingView(mode) {
+    viewModeBookings = mode;
+    document.querySelectorAll('#bookings-section .tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+    document.getElementById(`tab-booking-${mode}`).classList.add('active-tab');
+    renderListTable();
+}
+
+function toggleFinanceView(mode) {
+    viewModeFinance = mode;
+    document.querySelectorAll('#finance-section .tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+    document.getElementById(`tab-finance-${mode}`).classList.add('active-tab');
+    renderFinanceTable();
+}
+
 // --- RENDERING CALENDAR ---
 function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
@@ -199,7 +226,26 @@ function renderCalendar() {
 function renderListTable() {
     const tbody = document.querySelector('#bookings-table tbody');
     if(!tbody) return;
-    tbody.innerHTML = allBookings.map(b => `
+
+    // Filter based on View Mode
+    let filtered = allBookings.filter(b => {
+        const recent = isBookingRecent(b.date, b.end_time);
+        return viewModeBookings === 'upcoming' ? !recent : recent;
+    });
+
+    // Sort: Upcoming (ASC), Recent (DESC)
+    if (viewModeBookings === 'recent') {
+        filtered.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
+    } else {
+        filtered.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #9CA3AF; padding: 20px;">No ${viewModeBookings} bookings found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(b => `
         <tr>
             <td>${b.date.split('T')[0]}</td>
             <td class="hide-mobile">${b.start_time.substring(0,5)}</td>
@@ -217,26 +263,47 @@ function renderFinanceTable() {
     const tbody = document.querySelector('#finance-table tbody');
     if(!tbody) return;
     
-    tbody.innerHTML = allBookings.map(b => { 
-        gross += parseFloat(b.total_price); dp += parseFloat(b.dp_paid); remain += parseFloat(b.remaining_payment); 
-        return `
-            <tr>
-                <td>${b.date.split('T')[0]}</td>
-                <td>
-                    <strong>${b.client_name}</strong><br>
-                    <span style="font-size: 12px; color: #666;">📞 ${b.client_phone}</span>
-                </td>
-                <td class="hide-mobile">${formatIDR(b.total_price)}</td>
-                <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
-                <td class="hide-mobile text-red"><strong>${formatIDR(b.remaining_payment)}</strong></td>
-                <td><span class="status-pill status-${b.status}">${b.status}</span></td>
-            </tr>
-        `;
-    }).join('');
+    // Summary Cards ALWAYS calculate from ALL bookings.
+    allBookings.forEach(b => { 
+        gross += parseFloat(b.total_price); 
+        dp += parseFloat(b.dp_paid); 
+        remain += parseFloat(b.remaining_payment); 
+    });
 
     document.getElementById('fin-income').textContent = formatIDR(gross);
     document.getElementById('fin-dp').textContent = formatIDR(dp);
     document.getElementById('fin-remain').textContent = formatIDR(remain);
+
+    // Filter table rows based on View Mode
+    let filtered = allBookings.filter(b => {
+        const recent = isBookingRecent(b.date, b.end_time);
+        return viewModeFinance === 'upcoming' ? !recent : recent;
+    });
+
+    if (viewModeFinance === 'recent') {
+        filtered.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
+    } else {
+        filtered.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #9CA3AF; padding: 20px;">No ${viewModeFinance} transactions found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(b => `
+        <tr>
+            <td>${b.date.split('T')[0]}</td>
+            <td>
+                <strong>${b.client_name}</strong><br>
+                <span style="font-size: 12px; color: #666;">📞 ${b.client_phone}</span>
+            </td>
+            <td class="hide-mobile">${formatIDR(b.total_price)}</td>
+            <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
+            <td class="hide-mobile text-red"><strong>${formatIDR(b.remaining_payment)}</strong></td>
+            <td><span class="status-pill status-${b.status}">${b.status}</span></td>
+        </tr>
+    `).join('');
 }
 
 function renderPettyCash() {
@@ -327,7 +394,6 @@ function openDetailModal(b) {
 
 function closeDetailModal() { document.getElementById('detail-modal').classList.add('hidden'); }
 
-// [NEW] SETTLEMENT CALCULATION LOGIC
 function calcRemaining() {
     const p = parseFloat(document.getElementById('total_price').value) || 0;
     const dp = parseFloat(document.getElementById('dp_paid').value) || 0;
@@ -381,11 +447,9 @@ function openEditModal(b) {
     document.getElementById('total_price').value = b.total_price;
     document.getElementById('dp_paid').value = b.dp_paid;
     
-    // Set up settlement state
     currentBaseDP = parseFloat(b.dp_paid) || 0;
     document.getElementById('settlement_input').value = '';
 
-    // Show settlement section only if not fully paid
     if (b.status !== 'Paid') {
         document.getElementById('settlement-section').classList.remove('hidden');
     } else {
