@@ -54,6 +54,11 @@ button:active { transform: scale(0.97); }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 15px 10px; text-align: left; border-bottom: 1px solid #F3F4F6; }
 th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;}
+
+/* [NEW] Table Row Hover Effect */
+tbody tr { transition: background-color 0.2s ease; }
+tbody tr:hover { background-color: #F3F4F6; }
+
 .status-pill { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #fff; display: inline-block;}
 .status-Paid { background: var(--success); } .status-Partial { background: var(--warning); } .status-Unpaid { background: var(--danger); }
 .role-pill { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; background: #E0E7FF; color: var(--primary-dark); }
@@ -89,7 +94,8 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
 
 /* Mobile Calendar Overrides & Responsive */
 .mobile-only-list { display: none; }
-.mobile-event-card { background: white; padding: 15px; border-radius: 16px; margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #E5E7EB;}
+.mobile-event-card { background: white; padding: 15px; border-radius: 16px; margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #E5E7EB; transition: background-color 0.2s ease;}
+.mobile-event-card:hover { background-color: #F9FAFB; } /* Hover effect for mobile list cards */
 .mobile-event-card .left-info { display: flex; flex-direction: column; gap: 4px;}
 .mobile-event-card .time { font-weight: 700; color: #1F2937; font-size: 15px;}
 .mobile-event-card .client { color: #6B7280; font-size: 14px; }
@@ -117,6 +123,9 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
     .hide-mobile { display: none !important; }
     td, th { padding: 12px 5px; }
     
+    /* Hover disabled on mobile tables (handled by touch naturally) */
+    tbody tr:hover { background-color: transparent; }
+    
     /* iPhone Style Calendar */
     .calendar-wrapper { padding: 0 !important; border: none; box-shadow: none; overflow-y: visible;}
     #calendar { min-height: unset; height: auto; } 
@@ -141,7 +150,6 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
     .fc-day-today .fc-daygrid-day-number { color: #EF4444; font-weight: 600;}
     .selected-date .fc-daygrid-day-number { background: #EF4444 !important; color: white !important; border-radius: 50%; font-weight: 600;}
     
-    /* Make events tiny dots below numbers, deeply clickable */
     .fc-daygrid-day-events { display: flex !important; justify-content: center; flex-direction: row; flex-wrap: wrap; gap: 4px; margin-top: 2px !important; min-height: 8px !important; width: 100%; position: static !important;}
     .fc-daygrid-event-harness { display: block !important; }
     
@@ -157,10 +165,7 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
         overflow: visible !important; 
         border: none !important; 
     }
-    /* Invisible box around dot to make it extremely easy to tap */
-    .fc-daygrid-event::after {
-        content: ''; position: absolute; top: -12px; right: -12px; bottom: -12px; left: -12px;
-    }
+    .fc-daygrid-event::after { content: ''; position: absolute; top: -12px; right: -12px; bottom: -12px; left: -12px;}
     .fc-daygrid-event-dot { display: none !important; }
     .fc-event-title { display: none !important; }
     
