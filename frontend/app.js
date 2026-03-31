@@ -9,6 +9,7 @@ let allPettyCash =[];
 let socket = null;
 let inactivityTimer;
 let lastClickedDate = null; 
+let currentBaseDP = 0; // [NEW] Used for accurate settlement calculations
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 
@@ -149,14 +150,12 @@ function renderCalendar() {
         editable: false, 
         events: events,
         
-        // Instantly show details when tapping the gray event dot or block!
         eventClick: (info) => {
             openDetailModal(info.event.extendedProps);
         },
         
         dateClick: (info) => { 
             if (isMobile) {
-                // Double tap the cell to jump to Weekly View
                 if (lastClickedDate === info.dateStr) {
                     fullCalendarInstance.changeView('timeGridWeek', info.dateStr);
                     lastClickedDate = null; 
@@ -305,7 +304,7 @@ function openEditPcModal(t) {
 }
 function closePcModal() { document.getElementById('pc-modal').classList.add('hidden'); }
 
-// --- BOOKING MODALS ---
+// --- BOOKING MODALS & SETTLEMENT LOGIC ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
 function openDetailModal(b) {
@@ -328,16 +327,42 @@ function openDetailModal(b) {
 
 function closeDetailModal() { document.getElementById('detail-modal').classList.add('hidden'); }
 
+// [NEW] SETTLEMENT CALCULATION LOGIC
 function calcRemaining() {
     const p = parseFloat(document.getElementById('total_price').value) || 0;
     const dp = parseFloat(document.getElementById('dp_paid').value) || 0;
     document.getElementById('remaining-text').textContent = formatIDR(p - dp);
 }
 
+function handleManualDP() {
+    currentBaseDP = parseFloat(document.getElementById('dp_paid').value) || 0;
+    document.getElementById('settlement_input').value = '';
+    calcRemaining();
+}
+
+function addSettlementToDP() {
+    const added = parseFloat(document.getElementById('settlement_input').value) || 0;
+    document.getElementById('dp_paid').value = currentBaseDP + added;
+    calcRemaining();
+}
+
+function markAsFullyPaid() {
+    const total = parseFloat(document.getElementById('total_price').value) || 0;
+    const remain = total - currentBaseDP;
+    if (remain > 0) {
+        document.getElementById('settlement_input').value = remain;
+        addSettlementToDP();
+    }
+}
+
 function openBookingModal() {
     document.getElementById('booking-form').reset();
     document.getElementById('booking_id').value = "";
     document.getElementById('modal-title').textContent = "New Booking";
+    
+    currentBaseDP = 0;
+    document.getElementById('settlement-section').classList.add('hidden');
+
     calcRemaining();
     document.getElementById('booking-modal').classList.remove('hidden');
 }
@@ -355,6 +380,18 @@ function openEditModal(b) {
     document.getElementById('end_time').value = b.end_time.substring(0,5);
     document.getElementById('total_price').value = b.total_price;
     document.getElementById('dp_paid').value = b.dp_paid;
+    
+    // Set up settlement state
+    currentBaseDP = parseFloat(b.dp_paid) || 0;
+    document.getElementById('settlement_input').value = '';
+
+    // Show settlement section only if not fully paid
+    if (b.status !== 'Paid') {
+        document.getElementById('settlement-section').classList.remove('hidden');
+    } else {
+        document.getElementById('settlement-section').classList.add('hidden');
+    }
+
     calcRemaining();
     document.getElementById('booking-modal').classList.remove('hidden');
 }
