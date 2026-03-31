@@ -10,19 +10,40 @@ let socket = null;
 let inactivityTimer;
 let lastClickedDate = null; 
 let currentBaseDP = 0;
+let alertTimeout; // Added to prevent overlapping alerts
 
-// [NEW] View Modes for Tabs
+// View Modes for Tabs
 let viewModeBookings = 'upcoming';
 let viewModeFinance = 'upcoming';
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 
+// --- [ANIMATION FIX] Alert Notification ---
 function showAlert(msg, isError = false) {
     const alertBox = document.getElementById('alert-box');
+    clearTimeout(alertTimeout);
     alertBox.textContent = msg;
     alertBox.className = `alert ${isError ? 'error' : ''}`;
-    alertBox.classList.remove('hidden');
-    setTimeout(() => alertBox.classList.add('hidden'), 3000);
+    alertBox.classList.remove('hidden', 'closing');
+    
+    alertTimeout = setTimeout(() => {
+        alertBox.classList.add('closing');
+        setTimeout(() => {
+            alertBox.classList.add('hidden');
+            alertBox.classList.remove('closing');
+        }, 200);
+    }, 3000);
+}
+
+// --- [ANIMATION FIX] Global Modal Closer ---
+function closeModalAnim(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.classList.add('closing');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('closing');
+    }, 200);
 }
 
 function getHeaders() {
@@ -71,7 +92,7 @@ function initApp() {
     if (!currentToken) return;
 
     currentUser = JSON.parse(localStorage.getItem('user'));
-    document.getElementById('login-view').classList.add('hidden');
+    document.getElementById('login-view').classList.add('hidden', 'closing');
     document.getElementById('app-view').classList.remove('hidden');
     
     if (currentUser.role !== 'Admin') {
@@ -132,15 +153,13 @@ async function fetchPettyCash() {
     try { allPettyCash = await safeFetch(`${API_URL}/petty_cash`, { headers: getHeaders() }); } catch (err) { console.error(err); }
 }
 
-// [NEW] Date Check Logic: Returns true if booking has completely ended
 function isBookingRecent(dateStr, endTimeStr) {
     const dateTimeStr = `${dateStr.split('T')[0]}T${endTimeStr}`;
     const bookingEnd = new Date(dateTimeStr);
     const now = new Date();
-    return bookingEnd < now; // If it's in the past, it's 'recent'
+    return bookingEnd < now; 
 }
 
-// [NEW] Tab Toggles
 function toggleBookingView(mode) {
     viewModeBookings = mode;
     document.querySelectorAll('#bookings-section .tab-btn').forEach(btn => btn.classList.remove('active-tab'));
@@ -227,13 +246,11 @@ function renderListTable() {
     const tbody = document.querySelector('#bookings-table tbody');
     if(!tbody) return;
 
-    // Filter based on View Mode
     let filtered = allBookings.filter(b => {
         const recent = isBookingRecent(b.date, b.end_time);
         return viewModeBookings === 'upcoming' ? !recent : recent;
     });
 
-    // Sort: Upcoming (ASC), Recent (DESC)
     if (viewModeBookings === 'recent') {
         filtered.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
     } else {
@@ -263,7 +280,6 @@ function renderFinanceTable() {
     const tbody = document.querySelector('#finance-table tbody');
     if(!tbody) return;
     
-    // Summary Cards ALWAYS calculate from ALL bookings.
     allBookings.forEach(b => { 
         gross += parseFloat(b.total_price); 
         dp += parseFloat(b.dp_paid); 
@@ -274,7 +290,6 @@ function renderFinanceTable() {
     document.getElementById('fin-dp').textContent = formatIDR(dp);
     document.getElementById('fin-remain').textContent = formatIDR(remain);
 
-    // Filter table rows based on View Mode
     let filtered = allBookings.filter(b => {
         const recent = isBookingRecent(b.date, b.end_time);
         return viewModeFinance === 'upcoming' ? !recent : recent;
@@ -347,16 +362,17 @@ function openPcDetailModal(t) {
 
     document.getElementById('btn-edit-pc').onclick = () => openEditPcModal(t);
     document.getElementById('btn-del-pc').onclick = () => deletePettyCash(t.id);
-    document.getElementById('pc-detail-modal').classList.remove('hidden');
+    document.getElementById('pc-detail-modal').classList.remove('hidden', 'closing');
 }
 
-function closePcDetailModal() { document.getElementById('pc-detail-modal').classList.add('hidden'); }
+// [UPDATED] Close PC Detail using animation
+function closePcDetailModal() { closeModalAnim('pc-detail-modal'); }
 
 function openPcModal() {
     document.getElementById('pc-form').reset();
     document.getElementById('pc_id').value = "";
     document.getElementById('pc-modal-title').textContent = "Add Petty Cash";
-    document.getElementById('pc-modal').classList.remove('hidden');
+    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
 }
 
 function openEditPcModal(t) {
@@ -367,9 +383,11 @@ function openEditPcModal(t) {
     document.getElementById('pc_desc').value = t.description;
     document.getElementById('pc_type').value = t.type;
     document.getElementById('pc_amount').value = t.amount;
-    document.getElementById('pc-modal').classList.remove('hidden');
+    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
 }
-function closePcModal() { document.getElementById('pc-modal').classList.add('hidden'); }
+
+// [UPDATED] Close PC Form using animation
+function closePcModal() { closeModalAnim('pc-modal'); }
 
 // --- BOOKING MODALS & SETTLEMENT LOGIC ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
@@ -389,10 +407,11 @@ function openDetailModal(b) {
 
     document.getElementById('btn-edit-from-detail').onclick = () => openEditModal(b);
     document.getElementById('delete-btn').onclick = () => deleteFromModal(b.id);
-    document.getElementById('detail-modal').classList.remove('hidden');
+    document.getElementById('detail-modal').classList.remove('hidden', 'closing');
 }
 
-function closeDetailModal() { document.getElementById('detail-modal').classList.add('hidden'); }
+// [UPDATED] Close Booking Detail using animation
+function closeDetailModal() { closeModalAnim('detail-modal'); }
 
 function calcRemaining() {
     const p = parseFloat(document.getElementById('total_price').value) || 0;
@@ -430,7 +449,7 @@ function openBookingModal() {
     document.getElementById('settlement-section').classList.add('hidden');
 
     calcRemaining();
-    document.getElementById('booking-modal').classList.remove('hidden');
+    document.getElementById('booking-modal').classList.remove('hidden', 'closing');
 }
 
 function openEditModal(b) {
@@ -457,10 +476,11 @@ function openEditModal(b) {
     }
 
     calcRemaining();
-    document.getElementById('booking-modal').classList.remove('hidden');
+    document.getElementById('booking-modal').classList.remove('hidden', 'closing');
 }
 
-function closeBookingModal() { document.getElementById('booking-modal').classList.add('hidden'); }
+// [UPDATED] Close Booking Form using animation
+function closeBookingModal() { closeModalAnim('booking-modal'); }
 
 // --- API SUBMISSIONS ---
 const bookingForm = document.getElementById('booking-form');
