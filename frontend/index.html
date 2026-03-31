@@ -43,7 +43,7 @@
                     <h2 id="section-title">Calendar</h2>
                 </div>
                 <div class="header-right">
-                    <span id="sync-status" class="sync-indicator">🟢 Live</span>
+                    <span id="sync-status" class="sync-indicator">🟢 Live Sync On</span>
                     <button class="primary-btn shadow-btn" onclick="openBookingModal()">+ New</button>
                 </div>
             </header>
@@ -63,7 +63,6 @@
             <section id="bookings-section" class="section hidden">
                 <div class="table-container">
                     <table id="bookings-table">
-                        <!-- Removed hide-mobile from Status -->
                         <thead><tr><th>Date</th><th class="hide-mobile">Time</th><th>Client</th><th class="hide-mobile">Type</th><th class="hide-mobile">Received</th><th>Status</th><th>Action</th></tr></thead>
                         <tbody></tbody>
                     </table>
@@ -79,7 +78,6 @@
                 <h3 class="mt-20 mb-15">Client Transactions</h3>
                 <div class="table-container">
                     <table id="finance-table">
-                        <!-- Changed Action to Status -->
                         <thead><tr><th>Date</th><th>Client Info</th><th class="hide-mobile">Total</th><th class="hide-mobile">Received</th><th class="hide-mobile">Remaining</th><th>Status</th></tr></thead>
                         <tbody></tbody>
                     </table>
@@ -215,10 +213,21 @@
                         <input type="number" id="total_price" placeholder="Rp" oninput="calcRemaining()" required>
                     </div>
                     <div>
-                        <span class="detail-label text-green">Total Received (DP) *</span>
-                        <input type="number" id="dp_paid" placeholder="Rp" oninput="calcRemaining()" required>
+                        <span class="detail-label text-green">Total Received *</span>
+                        <!-- [UPDATED] Uses handleManualDP instead of calcRemaining -->
+                        <input type="number" id="dp_paid" placeholder="Rp" oninput="handleManualDP()" required>
                     </div>
                 </div>
+
+                <!-- [NEW] SETTLEMENT SECTION -->
+                <div id="settlement-section" class="hidden mt-15" style="padding: 15px; border-radius: 12px; background: #ECFDF5; border: 1px solid #D1FAE5; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 13px; font-weight: 600; color: #065F46;">Add Settlement</span>
+                        <button type="button" onclick="markAsFullyPaid()" style="background: #10B981; color: white; padding: 6px 12px; border-radius: 8px; border: none; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);">Settle Full</button>
+                    </div>
+                    <input type="number" id="settlement_input" placeholder="Additional Payment (Rp)" oninput="addSettlementToDP()" style="margin-bottom: 0;">
+                </div>
+
                 <p class="calc-text text-red">Remaining: <strong id="remaining-text">Rp 0</strong></p>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" onclick="closeBookingModal()">Cancel</button>
