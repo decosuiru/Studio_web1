@@ -55,9 +55,9 @@ table { width: 100%; border-collapse: collapse; }
 th, td { padding: 15px 10px; text-align: left; border-bottom: 1px solid #F3F4F6; }
 th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;}
 
-/* [NEW] Table Row Hover Effect */
-tbody tr { transition: background-color 0.2s ease; }
-tbody tr:hover { background-color: #F3F4F6; }
+/* FIX: Table Row Hover Effect (Targets ONLY data lists, excludes calendar completely) */
+#bookings-table tbody tr, #finance-table tbody tr, #pc-table tbody tr, #accounts-table tbody tr { transition: background-color 0.2s ease; }
+#bookings-table tbody tr:hover, #finance-table tbody tr:hover, #pc-table tbody tr:hover, #accounts-table tbody tr:hover { background-color: #F3F4F6; }
 
 .status-pill { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #fff; display: inline-block;}
 .status-Paid { background: var(--success); } .status-Partial { background: var(--warning); } .status-Unpaid { background: var(--danger); }
@@ -95,7 +95,7 @@ tbody tr:hover { background-color: #F3F4F6; }
 /* Mobile Calendar Overrides & Responsive */
 .mobile-only-list { display: none; }
 .mobile-event-card { background: white; padding: 15px; border-radius: 16px; margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #E5E7EB; transition: background-color 0.2s ease;}
-.mobile-event-card:hover { background-color: #F9FAFB; } /* Hover effect for mobile list cards */
+.mobile-event-card:hover { background-color: #F9FAFB; } 
 .mobile-event-card .left-info { display: flex; flex-direction: column; gap: 4px;}
 .mobile-event-card .time { font-weight: 700; color: #1F2937; font-size: 15px;}
 .mobile-event-card .client { color: #6B7280; font-size: 14px; }
@@ -123,8 +123,8 @@ tbody tr:hover { background-color: #F3F4F6; }
     .hide-mobile { display: none !important; }
     td, th { padding: 12px 5px; }
     
-    /* Hover disabled on mobile tables (handled by touch naturally) */
-    tbody tr:hover { background-color: transparent; }
+    /* FIX: Hover disabled on mobile tables so taps don't stick */
+    #bookings-table tbody tr:hover, #finance-table tbody tr:hover, #pc-table tbody tr:hover, #accounts-table tbody tr:hover { background-color: transparent; }
     
     /* iPhone Style Calendar */
     .calendar-wrapper { padding: 0 !important; border: none; box-shadow: none; overflow-y: visible;}
