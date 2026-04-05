@@ -2,10 +2,10 @@
     /* 🌅 SENJA (SUNSET) THEME COLORS */
     --primary: #E2634B;         /* Warm Sunset Coral */
     --primary-dark: #C64A33;    /* Deep Sunset Orange */
-    --bg: transparent;          /* Transparent to show background */
-    --text: #1F2937;            /* Dark text for contrast */
-    --white: rgba(255, 255, 255, 0.95); /* Frosted glass white */
-    --sidebar: rgba(38, 28, 44, 0.85);  /* Deep Dusk Purple with transparency */
+    --bg: transparent;          
+    --text: #1F2937;            
+    --white: rgba(255, 255, 255, 0.95); 
+    --sidebar: rgba(38, 28, 44, 0.85);  
     
     --danger: #EF4444; 
     --success: #10B981; 
@@ -27,7 +27,6 @@ body {
     position: relative;
 }
 
-/* Subtle dark overlay so the white cards always pop against the sunset */
 body::before {
     content: '';
     position: fixed;
@@ -46,10 +45,36 @@ body::before {
 .alert.error { background: var(--danger); }
 .alert.closing { animation: slideUp 0.2s ease-in forwards; }
 
-/* Layout */
+/* ---[UPDATED] TRANSPARENT LOGIN CARD --- */
 #login-view { height: 100vh; justify-content: center; align-items: center; padding: 20px; }
-.login-card { background: var(--white); padding: 40px; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.2); width: 100%; max-width: 400px; text-align: center; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); }
-.login-title { font-size: 26px; font-weight: 700; margin-bottom: 25px; color: var(--primary-dark); }
+.login-card { 
+    background: rgba(255, 255, 255, 0.1); /* Transparent Glass */
+    border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle edge highlight */
+    padding: 40px; 
+    border-radius: 20px; 
+    box-shadow: 0 15px 40px rgba(0,0,0,0.3); 
+    width: 100%; 
+    max-width: 400px; 
+    text-align: center; 
+    backdrop-filter: blur(15px); 
+    -webkit-backdrop-filter: blur(15px); 
+}
+.login-title { 
+    font-size: 26px; 
+    font-weight: 700; 
+    margin-bottom: 25px; 
+    color: #FFFFFF; /* White text for contrast on transparent bg */
+    text-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+#login-form input {
+    background: rgba(255, 255, 255, 0.7); /* Slightly transparent inputs */
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: var(--text);
+}
+#login-form input:focus {
+    background: rgba(255, 255, 255, 0.95);
+}
+/* ---------------------------------------- */
 
 #app-view { display: flex; height: 100vh; overflow: hidden; width: 100%; }
 .sidebar { width: 250px; background: var(--sidebar); color: white; padding: 20px; display: flex; flex-direction: column; flex-shrink: 0; z-index: 100; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border-right: 1px solid rgba(255,255,255,0.1);}
@@ -65,14 +90,12 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 #section-title { font-size: 24px; font-weight: 700; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
 .section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
-/* --- 🌟 PAGE TRANSITIONS --- */
 @keyframes fadeInSection {
     from { opacity: 0; transform: translateY(15px); }
     to { opacity: 1; transform: translateY(0); }
 }
 .section:not(.hidden) { animation: fadeInSection 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-/* Utilities */
 .mt-15 { margin-top: 15px; } .mt-20 { margin-top: 20px; } .mb-15 { margin-bottom: 15px; } .mb-20 { margin-bottom: 20px; }
 .text-left { text-align: left; } .w-full { width: 100%; }
 .text-green { color: var(--success) !important; font-weight: 600; } 
@@ -82,7 +105,6 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .bg-red { background: #FEF2F2 !important; border: 1px solid #FEE2E2; }
 .shadow-btn { box-shadow: 0 4px 12px rgba(226, 99, 75, 0.4); }
 
-/* Inputs & Buttons */
 input, select { width: 100%; padding: 14px 16px; margin-bottom: 15px; border: 1px solid #D1D5DB; border-radius: 12px; outline: none; transition: 0.2s; font-size: 15px; background: #F9FAFB;}
 input:focus, select:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(226, 99, 75, 0.15); }
 button { padding: 12px 20px; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; transition: 0.2s; font-size: 15px;}
@@ -91,12 +113,10 @@ button:active { transform: scale(0.97); }
 .cancel-btn { background: #E5E7EB; color: #374151; }
 .del-btn { background: var(--danger); color: white; }
 
-/* TABS */
 .tab-container { display: flex; gap: 10px; flex-wrap: wrap;}
 .tab-btn { padding: 8px 16px; border: 1px solid #D1D5DB; background: var(--white); color: #6B7280; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s; backdrop-filter: blur(10px);}
 .tab-btn.active-tab { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 12px rgba(226, 99, 75, 0.3);}
 
-/* Tables & Grid (Glassmorphism) */
 .table-container { flex: 1; background: var(--white); padding: 20px; border-radius: 20px; overflow-y: auto; overflow-x: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.4); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);}
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 15px 10px; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.05); }
@@ -112,7 +132,6 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
 .card h3 { color: #6B7280; font-size: 14px; margin-bottom: 10px; text-transform: uppercase; font-weight: 600;}
 .card .amount { font-size: 28px; font-weight: 800; color: var(--text); }
 
-/* --- 🌟 MODALS & CARD ANIMATIONS --- */
 @keyframes fadeBackdrop {
     from { background: rgba(17, 24, 39, 0); backdrop-filter: blur(0px); }
     to { background: rgba(17, 24, 39, 0.6); backdrop-filter: blur(4px); }
@@ -133,7 +152,6 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
 .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(17, 24, 39, 0.6); display: flex; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(4px);}
 .modal-content { background: white; padding: 30px; border-radius: 24px; width: 90%; max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;}
 
-/* Open & Close States */
 .modal:not(.hidden) { animation: fadeBackdrop 0.25s ease-out forwards; }
 .modal:not(.hidden) .modal-content { animation: popCard 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .modal.closing { animation: fadeOutBackdrop 0.2s ease-in forwards; }
@@ -148,7 +166,6 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
 .calc-text { text-align: right; margin-bottom: 20px; font-size: 16px;}
 .modal-actions { display: flex; gap: 12px; } .modal-actions button { flex: 1; }
 
-/* Calendar Desktop */
 .calendar-wrapper { padding: 20px; background: var(--white); border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.4); flex: 1; overflow-y: auto; overflow-x: hidden; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);}
 #calendar { min-height: 500px; height: 100%; font-size: 14px;}
 .fc .fc-toolbar.fc-header-toolbar { margin-bottom: 1.5em !important; }
@@ -160,7 +177,6 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
 .fc-day-today .fc-daygrid-day-frame { background: rgba(226, 99, 75, 0.05) !important; border: 1px solid var(--primary) !important; }
 .fc .fc-daygrid-event { margin-top: 2px !important; padding: 4px 6px !important; border-radius: 6px !important; font-size: 11px !important; font-weight: 600 !important; border: none !important; cursor: pointer;}
 
-/* Mobile Calendar Overrides & Responsive */
 .mobile-only-list { display: none; }
 .mobile-event-card { background: white; padding: 15px; border-radius: 16px; margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #E5E7EB; transition: background-color 0.2s ease;}
 .mobile-event-card:hover { background: #F9FAFB; } 
@@ -173,9 +189,7 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
 .mobile-menu-btn { display: none; background: transparent; color: white; border: none; font-size: 24px; padding: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.3);}
 .sync-indicator { font-size: 12px; color: var(--success); font-weight: 600; display: none; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 
-/* 📱 MOBILE SPECIFIC (iOS Frosted Glass Theme) */
 @media (max-width: 768px) {
-    /* Frosted glass over the entire dashboard on mobile to let Senja shine through */
     #app-view { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); }
     
     .sidebar { position: fixed; left: -260px; top: 0; height: 100vh; z-index: 100; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 4px 0 24px rgba(0,0,0,0.15);}
@@ -194,7 +208,8 @@ th { color: #6B7280; font-weight: 600; font-size: 13px; text-transform: uppercas
     .hide-mobile { display: none !important; }
     td, th { padding: 12px 5px; }
     
-    /* iPhone Style Calendar */
+    #bookings-table tbody tr:hover, #finance-table tbody tr:hover, #pc-table tbody tr:hover, #accounts-table tbody tr:hover { background-color: transparent; }
+    
     .calendar-wrapper { padding: 0 !important; border: none; box-shadow: none; overflow-y: visible; background: transparent; backdrop-filter: none;}
     #calendar { min-height: unset; height: auto; } 
 
