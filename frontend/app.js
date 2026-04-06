@@ -10,7 +10,7 @@ let socket = null;
 let inactivityTimer;
 let lastClickedDate = null; 
 let currentBaseDP = 0;
-let alertTimeout; // Added to prevent overlapping alerts
+let alertTimeout; 
 
 // View Modes for Tabs
 let viewModeBookings = 'upcoming';
@@ -18,7 +18,6 @@ let viewModeFinance = 'upcoming';
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 
-// --- [ANIMATION FIX] Alert Notification ---
 function showAlert(msg, isError = false) {
     const alertBox = document.getElementById('alert-box');
     clearTimeout(alertTimeout);
@@ -35,7 +34,6 @@ function showAlert(msg, isError = false) {
     }, 3000);
 }
 
-// --- [ANIMATION FIX] Global Modal Closer ---
 function closeModalAnim(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
@@ -202,8 +200,9 @@ function renderCalendar() {
         
         dateClick: (info) => { 
             if (isMobile) {
+                // [UPDATED] Double tap now changes view to 'timeGridDay' instead of 'timeGridWeek'
                 if (lastClickedDate === info.dateStr) {
-                    fullCalendarInstance.changeView('timeGridWeek', info.dateStr);
+                    fullCalendarInstance.changeView('timeGridDay', info.dateStr);
                     lastClickedDate = null; 
                     return;
                 }
@@ -235,7 +234,8 @@ function renderCalendar() {
                     `).join('');
                 }
             } else {
-                fullCalendarInstance.changeView('timeGridWeek', info.dateStr);
+                // [UPDATED] Desktop click changes view to 'timeGridDay' instead of 'timeGridWeek'
+                fullCalendarInstance.changeView('timeGridDay', info.dateStr);
             }
         }
     });
@@ -365,7 +365,6 @@ function openPcDetailModal(t) {
     document.getElementById('pc-detail-modal').classList.remove('hidden', 'closing');
 }
 
-// [UPDATED] Close PC Detail using animation
 function closePcDetailModal() { closeModalAnim('pc-detail-modal'); }
 
 function openPcModal() {
@@ -386,7 +385,6 @@ function openEditPcModal(t) {
     document.getElementById('pc-modal').classList.remove('hidden', 'closing');
 }
 
-// [UPDATED] Close PC Form using animation
 function closePcModal() { closeModalAnim('pc-modal'); }
 
 // --- BOOKING MODALS & SETTLEMENT LOGIC ---
@@ -410,7 +408,6 @@ function openDetailModal(b) {
     document.getElementById('detail-modal').classList.remove('hidden', 'closing');
 }
 
-// [UPDATED] Close Booking Detail using animation
 function closeDetailModal() { closeModalAnim('detail-modal'); }
 
 function calcRemaining() {
@@ -479,7 +476,6 @@ function openEditModal(b) {
     document.getElementById('booking-modal').classList.remove('hidden', 'closing');
 }
 
-// [UPDATED] Close Booking Form using animation
 function closeBookingModal() { closeModalAnim('booking-modal'); }
 
 // --- API SUBMISSIONS ---
