@@ -247,10 +247,43 @@ function renderCalendar() {
     fullCalendarInstance.render();
 }
 
+// [NEW] Logic to check if a booking is happening RIGHT NOW
+function isBookingOngoing(dateStr, startStr, endStr) {
+    const now = new Date();
+    const start = new Date(`${dateStr.split('T')[0]}T${startStr}`);
+    const end = new Date(`${dateStr.split('T')[0]}T${endStr}`);
+    return now >= start && now <= end;
+}
+
+// [UPDATED] Render Bookings List
 function renderListTable() {
     const tbody = document.querySelector('#bookings-table tbody');
+    const ongoingContainer = document.getElementById('ongoing-session-container');
     if(!tbody) return;
 
+    // 1. Process and Render Ongoing Sessions Banner
+    const ongoingBookings = allBookings.filter(b => isBookingOngoing(b.date, b.start_time, b.end_time));
+    if (ongoingContainer) {
+        if (ongoingBookings.length > 0) {
+            ongoingContainer.innerHTML = ongoingBookings.map(b => `
+                <div class="ongoing-card" onclick="openDetailModalById(${b.id})">
+                    <div>
+                        <h3><div class="live-dot"></div> CURRENT ONGOING SESSION</h3>
+                        <div style="font-size: 22px; font-weight: 800; margin-bottom: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">${b.client_name}</div>
+                        <div style="font-size: 14px; opacity: 0.95; font-weight: 500;">${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)} &nbsp;|&nbsp; ${b.customer_type}</div>
+                    </div>
+                    <div class="right-side" style="text-align: right;">
+                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px; font-weight: 600;">Status</div>
+                        <div style="font-weight: 700; padding: 6px 12px; background: rgba(255,255,255,0.25); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">${b.status}</div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            ongoingContainer.innerHTML = '';
+        }
+    }
+
+    // 2. Filter Table based on View Mode (Upcoming vs Recent)
     let filtered = allBookings.filter(b => {
         const recent = isBookingRecent(b.date, b.end_time);
         return viewModeBookings === 'upcoming' ? !recent : recent;
@@ -267,18 +300,43 @@ function renderListTable() {
         return;
     }
 
-    tbody.innerHTML = filtered.map(b => `
-        <tr>
+    // 3. Inject Table Rows (with subtle Live highlights if applicable)
+    tbody.innerHTML = filtered.map(b => {
+        const isLive = isBookingOngoing(b.date, b.start_time, b.end_time);
+        const liveBadge = isLive ? `<span class="live-badge">LIVE</span>` : '';
+        const rowHighlight = isLive ? `background-color: rgba(16, 185, 129, 0.08);` : '';
+
+        return `
+        <tr style="${rowHighlight}">
             <td>${b.date.split('T')[0]}</td>
-            <td class="hide-mobile">${b.start_time.substring(0,5)}</td>
-            <td><strong>${b.client_name}</strong></td>
+            <td class="hide-mobile">${b.start_time.substring(0,5)}${liveBadge}</td>
+            <td><strong>${b.client_name}</strong>${window.innerWidth <= 768 ? liveBadge : ''}</td>
             <td class="hide-mobile">${b.customer_type}</td>
             <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
             <td><span class="status-pill status-${b.status}">${b.status}</span></td>
             <td><button class="primary-btn" style="padding: 6px 12px" onclick="openDetailModalById(${b.id})">Detail</button></td>
         </tr>
-    `).join('');
+    `}).join('');
 }
+
+//[NEW] Keep the clock checking every 60 seconds so "Live" statuses trigger automatically
+setInterval(() => {
+    const activeEl = document.querySelector('.section:not(.hidden)');
+    if (activeEl && activeEl.id === 'bookings-section') {
+        renderListTable();
+    }
+}, 60000);
+How this works:
+As soon as a booking's start_time hits your computer/phone's current time, the sleek green "Current Ongoing Session" banner slides in automatically at the top of your Bookings list.
+The row inside the table gets a slight green tint and a pulsing LIVE badge.
+The system silently checks the clock every 60 seconds (setInterval), so it will automatically transition into "Live", and automatically clear out when the time passes without you needing to refresh the page!
+71.8s
+info
+Google AI models may make mistakes, so double-check outputs.
+Use Arrow Up and Arrow Down to select a turn, Enter to jump to it, and Escape to return to the chat.
+Start typing a prompt, use alt + enter to append
+
+
 
 function renderFinanceTable() {
     let gross = 0, dp = 0, remain = 0;
