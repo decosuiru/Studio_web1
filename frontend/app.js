@@ -303,7 +303,7 @@ function renderListTable() {
         return;
     }
 
-    // 3. Inject Table Rows (With spaced out LIVE badge)
+    // 3. Inject Table Rows (With guaranteed LIVE badge on PC & Mobile)
     tbody.innerHTML = filtered.map(b => {
         const isLive = isBookingOngoing(b.date, b.start_time, b.end_time);
         const liveBadge = isLive ? `<span class="live-badge" style="background: #10B981; color: white; padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; margin-left: 8px; vertical-align: middle; display: inline-block; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);">LIVE</span>` : '';
@@ -312,8 +312,8 @@ function renderListTable() {
         return `
         <tr style="${rowHighlight}">
             <td>${b.date.split('T')[0]}</td>
-            <td class="hide-mobile">${b.start_time.substring(0,5)}${liveBadge}</td>
-            <td><strong>${b.client_name}</strong>${window.innerWidth <= 768 ? liveBadge : ''}</td>
+            <td class="hide-mobile">${b.start_time.substring(0,5)}</td>
+            <td><strong>${b.client_name}</strong> ${liveBadge}</td>
             <td class="hide-mobile">${b.customer_type}</td>
             <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
             <td><span class="status-pill status-${b.status}">${b.status}</span></td>
