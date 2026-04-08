@@ -256,13 +256,13 @@ function isBookingOngoing(dateStr, startStr, endStr) {
     return now >= start && now <= end;
 }
 
-// [UPDATED] Render Bookings List with Guaranteed Styling
+//[UPDATED] Render Bookings List
 function renderListTable() {
     const tbody = document.querySelector('#bookings-table tbody');
     const ongoingContainer = document.getElementById('ongoing-session-container');
     if(!tbody) return;
 
-    // 1. Process and Render Ongoing Sessions Banner (Hardcoded styles to prevent breaking)
+    // 1. Process and Render Ongoing Sessions Banner
     const ongoingBookings = allBookings.filter(b => isBookingOngoing(b.date, b.start_time, b.end_time));
     if (ongoingContainer) {
         if (ongoingBookings.length > 0) {
@@ -270,7 +270,7 @@ function renderListTable() {
                 <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%); color: white; padding: 20px 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4); display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.4); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); flex-wrap: wrap; gap: 15px;" onclick="openDetailModalById(${b.id})">
                     <div style="flex: 1;">
                         <h3 style="color: rgba(255,255,255,0.95); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                            <div class="live-dot"></div> CURRENT ONGOING SESSION
+                            <span class="live-dot"></span> CURRENT ONGOING SESSION
                         </h3>
                         <div style="font-size: 24px; font-weight: 800; margin-bottom: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${b.client_name}</div>
                         <div style="font-size: 14px; opacity: 0.95; font-weight: 500;">${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)} &nbsp;|&nbsp; ${b.customer_type}</div>
@@ -299,14 +299,15 @@ function renderListTable() {
     }
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No ${viewModeBookings} bookings found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: rgba(0,0,0,0.4); padding: 20px;">No ${viewModeBookings} bookings found.</td></tr>`;
         return;
     }
 
-    // 3. Inject Table Rows (With guaranteed LIVE badge on PC & Mobile)
+    // 3. Inject Table Rows (STATIC LIVE BADGE - NO PULSE)
     tbody.innerHTML = filtered.map(b => {
         const isLive = isBookingOngoing(b.date, b.start_time, b.end_time);
-        const liveBadge = isLive ? `<span class="live-badge" style="background: #10B981; color: white; padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; margin-left: 8px; vertical-align: middle; display: inline-block; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);">LIVE</span>` : '';
+        // The badge is now purely static inline CSS
+        const liveBadge = isLive ? `<span style="background: #10B981; color: white; padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; margin-left: 8px; vertical-align: middle; display: inline-block; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">LIVE</span>` : '';
         const rowHighlight = isLive ? `background-color: rgba(16, 185, 129, 0.08);` : '';
 
         return `
@@ -321,7 +322,6 @@ function renderListTable() {
         </tr>
     `}).join('');
 }
-
 //[NEW] Keep the clock checking every 60 seconds so "Live" statuses trigger automatically
 setInterval(() => {
     const activeEl = document.querySelector('.section:not(.hidden)');
