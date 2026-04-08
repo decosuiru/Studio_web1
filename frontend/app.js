@@ -326,16 +326,6 @@ setInterval(() => {
         renderListTable();
     }
 }, 60000);
-How this works:
-As soon as a booking's start_time hits your computer/phone's current time, the sleek green "Current Ongoing Session" banner slides in automatically at the top of your Bookings list.
-The row inside the table gets a slight green tint and a pulsing LIVE badge.
-The system silently checks the clock every 60 seconds (setInterval), so it will automatically transition into "Live", and automatically clear out when the time passes without you needing to refresh the page!
-71.8s
-info
-Google AI models may make mistakes, so double-check outputs.
-Use Arrow Up and Arrow Down to select a turn, Enter to jump to it, and Escape to return to the chat.
-Start typing a prompt, use alt + enter to append
-
 
 
 function renderFinanceTable() {
