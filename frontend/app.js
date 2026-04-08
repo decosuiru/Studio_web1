@@ -303,7 +303,65 @@ function renderListTable() {
     // 3. Inject Table Rows (with subtle Live highlights if applicable)
     tbody.innerHTML = filtered.map(b => {
         const isLive = isBookingOngoing(b.date, b.start_time, b.end_time);
-        const liveBadge = isLive ? `<span class="live-badge">LIVE</span>` : '';
+// [NEW] Logic to check if a booking is happening RIGHT NOW
+function isBookingOngoing(dateStr, startStr, endStr) {
+    const now = new Date();
+    const start = new Date(`${dateStr.split('T')[0]}T${startStr}`);
+    const end = new Date(`${dateStr.split('T')[0]}T${endStr}`);
+    return now >= start && now <= end;
+}
+
+// [UPDATED] Render Bookings List with Guaranteed Styling
+function renderListTable() {
+    const tbody = document.querySelector('#bookings-table tbody');
+    const ongoingContainer = document.getElementById('ongoing-session-container');
+    if(!tbody) return;
+
+    // 1. Process and Render Ongoing Sessions Banner (Hardcoded styles to prevent breaking)
+    const ongoingBookings = allBookings.filter(b => isBookingOngoing(b.date, b.start_time, b.end_time));
+    if (ongoingContainer) {
+        if (ongoingBookings.length > 0) {
+            ongoingContainer.innerHTML = ongoingBookings.map(b => `
+                <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%); color: white; padding: 20px 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4); display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.4); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); flex-wrap: wrap; gap: 15px;" onclick="openDetailModalById(${b.id})">
+                    <div style="flex: 1;">
+                        <h3 style="color: rgba(255,255,255,0.95); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                            <div class="live-dot"></div> CURRENT ONGOING SESSION
+                        </h3>
+                        <div style="font-size: 24px; font-weight: 800; margin-bottom: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${b.client_name}</div>
+                        <div style="font-size: 14px; opacity: 0.95; font-weight: 500;">${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)} &nbsp;|&nbsp; ${b.customer_type}</div>
+                    </div>
+                    <div style="text-align: right; background: rgba(0,0,0,0.15); padding: 12px 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.2);">
+                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 6px; font-weight: 600; text-transform: uppercase;">Status</div>
+                        <div style="font-weight: 800; padding: 6px 14px; background: #FFFFFF; color: #059669; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: inline-block;">${b.status}</div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            ongoingContainer.innerHTML = '';
+        }
+    }
+
+    // 2. Filter Table based on View Mode
+    let filtered = allBookings.filter(b => {
+        const recent = isBookingRecent(b.date, b.end_time);
+        return viewModeBookings === 'upcoming' ? !recent : recent;
+    });
+
+    if (viewModeBookings === 'recent') {
+        filtered.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
+    } else {
+        filtered.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No ${viewModeBookings} bookings found.</td></tr>`;
+        return;
+    }
+
+    // 3. Inject Table Rows (With spaced out LIVE badge)
+    tbody.innerHTML = filtered.map(b => {
+        const isLive = isBookingOngoing(b.date, b.start_time, b.end_time);
+        const liveBadge = isLive ? `<span class="live-badge" style="background: #10B981; color: white; padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; margin-left: 8px; vertical-align: middle; display: inline-block; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);">LIVE</span>` : '';
         const rowHighlight = isLive ? `background-color: rgba(16, 185, 129, 0.08);` : '';
 
         return `
