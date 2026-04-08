@@ -247,62 +247,7 @@ function renderCalendar() {
     fullCalendarInstance.render();
 }
 
-// [NEW] Logic to check if a booking is happening RIGHT NOW
-function isBookingOngoing(dateStr, startStr, endStr) {
-    const now = new Date();
-    const start = new Date(`${dateStr.split('T')[0]}T${startStr}`);
-    const end = new Date(`${dateStr.split('T')[0]}T${endStr}`);
-    return now >= start && now <= end;
-}
 
-// [UPDATED] Render Bookings List
-function renderListTable() {
-    const tbody = document.querySelector('#bookings-table tbody');
-    const ongoingContainer = document.getElementById('ongoing-session-container');
-    if(!tbody) return;
-
-    // 1. Process and Render Ongoing Sessions Banner
-    const ongoingBookings = allBookings.filter(b => isBookingOngoing(b.date, b.start_time, b.end_time));
-    if (ongoingContainer) {
-        if (ongoingBookings.length > 0) {
-            ongoingContainer.innerHTML = ongoingBookings.map(b => `
-                <div class="ongoing-card" onclick="openDetailModalById(${b.id})">
-                    <div>
-                        <h3><div class="live-dot"></div> CURRENT ONGOING SESSION</h3>
-                        <div style="font-size: 22px; font-weight: 800; margin-bottom: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">${b.client_name}</div>
-                        <div style="font-size: 14px; opacity: 0.95; font-weight: 500;">${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)} &nbsp;|&nbsp; ${b.customer_type}</div>
-                    </div>
-                    <div class="right-side" style="text-align: right;">
-                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px; font-weight: 600;">Status</div>
-                        <div style="font-weight: 700; padding: 6px 12px; background: rgba(255,255,255,0.25); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">${b.status}</div>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            ongoingContainer.innerHTML = '';
-        }
-    }
-
-    // 2. Filter Table based on View Mode (Upcoming vs Recent)
-    let filtered = allBookings.filter(b => {
-        const recent = isBookingRecent(b.date, b.end_time);
-        return viewModeBookings === 'upcoming' ? !recent : recent;
-    });
-
-    if (viewModeBookings === 'recent') {
-        filtered.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
-    } else {
-        filtered.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
-    }
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #9CA3AF; padding: 20px;">No ${viewModeBookings} bookings found.</td></tr>`;
-        return;
-    }
-
-    // 3. Inject Table Rows (with subtle Live highlights if applicable)
-    tbody.innerHTML = filtered.map(b => {
-        const isLive = isBookingOngoing(b.date, b.start_time, b.end_time);
 // [NEW] Logic to check if a booking is happening RIGHT NOW
 function isBookingOngoing(dateStr, startStr, endStr) {
     const now = new Date();
