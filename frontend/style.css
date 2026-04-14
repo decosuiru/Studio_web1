@@ -45,11 +45,11 @@ body::before {
 .alert.error { background: var(--danger); }
 .alert.closing { animation: slideUp 0.2s ease-in forwards; }
 
-/* ---[UPDATED] TRANSPARENT LOGIN CARD --- */
-#login-view { height: 100vh; justify-content: center; align-items: center; padding: 20px; }
+/* Layout */
+#login-view { height: 100vh; justify-content: center; align-items: center; padding: 20px; flex-direction: column; }
 .login-card { 
-    background: rgba(255, 255, 255, 0.1); /* Transparent Glass */
-    border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle edge highlight */
+    background: rgba(255, 255, 255, 0.1); 
+    border: 1px solid rgba(255, 255, 255, 0.3); 
     padding: 40px; 
     border-radius: 20px; 
     box-shadow: 0 15px 40px rgba(0,0,0,0.3); 
@@ -59,16 +59,34 @@ body::before {
     backdrop-filter: blur(15px); 
     -webkit-backdrop-filter: blur(15px); 
 }
+
+/* Restored "Welcome" text */
+.login-title { 
+    font-size: 26px; 
+    font-weight: 700; 
+    margin-bottom: 25px; 
+    color: #FFFFFF; 
+    text-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
 /* --- 🖼️ LOGO STYLING --- */
 .login-logo {
     width: 100%;
-    max-width: 220px; /* Adjust this to make login logo bigger/smaller */
+    max-width: 250px; /* Slightly larger since it's outside */
     height: auto;
-    margin: 0 auto 30px auto;
+    margin: 0 auto 30px auto; /* 30px gap between logo and login card */
     display: block;
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); /* Makes the white pop off the glass */
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6)); /* Stronger shadow to pop against the sunset */
 }
 
+.sidebar-logo {
+    width: 100%;
+    max-width: 160px; 
+    height: auto;
+    margin: 10px auto 40px auto;
+    display: block;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
 #login-form input {
     background: rgba(255, 255, 255, 0.7); /* Slightly transparent inputs */
     border: 1px solid rgba(255, 255, 255, 0.5);
