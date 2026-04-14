@@ -11,9 +11,13 @@
 <body>
     <div id="alert-box" class="alert hidden"></div>
 
-    <div id="login-view" class="view active">
+    <div id="login-view" class="view active" style="flex-direction: column;">
+        <!-- Logo placed outside and above the card -->
+        <img src="https://raw.githubusercontent.com/decosuiru/Studio_web1/main/logo/jane%27swhite.png" alt="Jane's Studio" class="login-logo">
+        
         <div class="login-card">
-            <img src="https://raw.githubusercontent.com/decosuiru/Studio_web1/main/logo/jane%27swhite.png" alt="Jane's Studio" class="login-logo">
+            <!-- "Welcome" text inside the card -->
+            <h2 class="login-title">Welcome</h2>
             <form id="login-form">
                 <input type="email" id="email" placeholder="Email Address" required>
                 <input type="password" id="password" placeholder="Password" required>
