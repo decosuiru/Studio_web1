@@ -12,11 +12,8 @@
     <div id="alert-box" class="alert hidden"></div>
 
     <div id="login-view" class="view active" style="flex-direction: column;">
-        <!-- Logo placed outside and above the card -->
         <img src="https://raw.githubusercontent.com/decosuiru/Studio_web1/main/logo/jane%27swhite.png" alt="Jane's Studio" class="login-logo">
-        
         <div class="login-card">
-            <!-- "Welcome" text inside the card -->
             <h2 class="login-title">Welcome</h2>
             <form id="login-form">
                 <input type="email" id="email" placeholder="Email Address" required>
@@ -47,16 +44,14 @@
                     <h2 id="section-title">Calendar</h2>
                 </div>
                 <div class="header-right">
-                    <span id="sync-status" class="sync-indicator">🟢 Live</span>
+                    <span id="sync-status" class="sync-indicator">🟢 Live Sync On</span>
                     <button class="primary-btn shadow-btn" onclick="openBookingModal()">+ New</button>
                 </div>
             </header>
 
-            <!-- SECTIONS -->
             <section id="calendar-section" class="section active">
                 <div class="calendar-wrapper">
                     <div id="calendar"></div>
-                    <!-- iOS-style Mobile Event List -->
                     <div id="mobile-event-list" class="mobile-only-list hidden mt-15">
                         <h4 id="mobile-event-date" style="color: var(--danger); font-size: 16px; margin-bottom: 10px; padding-left: 5px;"></h4>
                         <div id="mobile-event-items"></div>
@@ -65,9 +60,7 @@
             </section>
 
             <section id="bookings-section" class="section hidden">
-                <!-- [NEW] ONGOING SESSION CONTAINER -->
                 <div id="ongoing-session-container" class="mb-15"></div>
-
                 <div class="tab-container">
                     <button id="tab-booking-upcoming" class="tab-btn active-tab" onclick="toggleBookingView('upcoming')">Upcoming</button>
                     <button id="tab-booking-recent" class="tab-btn" onclick="toggleBookingView('recent')">Recent (Past)</button>
@@ -81,20 +74,33 @@
             </section>
 
             <section id="finance-section" class="section hidden">
+                <!-- [NEW] Finance Date Filter (Defaults to This Month) -->
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <select id="finance-filter-type" onchange="applyFinanceFilter()" style="width: auto; margin-bottom: 0;">
+                        <option value="month" selected>This Month</option>
+                        <option value="week">This Week</option>
+                        <option value="day">Today</option>
+                        <option value="all">All Time</option>
+                        <option value="custom">Custom Range...</option>
+                    </select>
+                    <input type="date" id="finance-start" style="display: none; width: auto; margin-bottom: 0;" onchange="applyFinanceFilter()">
+                    <input type="date" id="finance-end" style="display: none; width: auto; margin-bottom: 0;" onchange="applyFinanceFilter()">
+                </div>
+                
                 <div class="cards-grid">
                     <div class="card"><h3>Total Gross</h3><p class="amount" id="fin-income">Rp 0</p></div>
                     <div class="card bg-green"><h3>Total Received</h3><p class="amount text-green" id="fin-dp">Rp 0</p></div>
                     <div class="card bg-red"><h3>Unpaid Balance</h3><p class="amount text-red" id="fin-remain">Rp 0</p></div>
                 </div>
+                
                 <h3 class="mt-20 mb-15" style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Client Transactions</h3>
-                <!-- [NEW] TABS FOR FINANCE -->
                 <div class="tab-container">
                     <button id="tab-finance-upcoming" class="tab-btn active-tab" onclick="toggleFinanceView('upcoming')">Upcoming</button>
                     <button id="tab-finance-recent" class="tab-btn" onclick="toggleFinanceView('recent')">Recent (Past)</button>
                 </div>
                 <div class="table-container mt-15">
                     <table id="finance-table">
-                        <thead><tr><th>Date</th><th>Client Info</th><th class="hide-mobile">Total</th><th class="hide-mobile">Received</th><th class="hide-mobile">Remaining</th><th>Status</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Time</th><th>Client Info</th><th class="hide-mobile">Total</th><th class="hide-mobile">Received</th><th>Status</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -107,7 +113,11 @@
                     <div class="card"><h3>Balance</h3><p class="amount" id="pc-balance">Rp 0</p></div>
                 </div>
                 
-                <button class="primary-btn shadow-btn w-full mb-15" onclick="openPcModal()">+ Add Transaction</button>
+                <div style="display: flex; gap: 10px;" class="mb-15">
+                    <button class="primary-btn shadow-btn w-full" onclick="openPcModal()">+ Add Transaction</button>
+                    <!-- [NEW] Admin Only Reset Balance -->
+                    <button class="cancel-btn admin-only w-full" style="background: rgba(255,255,255,0.8); color: var(--danger); font-weight: bold; border: 1px solid var(--danger);" onclick="withdrawPettyCash()">Withdraw to 0</button>
+                </div>
 
                 <div class="table-container">
                     <table id="pc-table">
@@ -178,20 +188,20 @@
         </div>
     </div>
 
-    <!-- BOOKING DETAIL MODAL -->
+    <!-- BOOKING DETAIL MODAL (Updated with Payment Timestamps) -->
     <div id="detail-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Booking Details</h3>
             <div class="detail-grid mt-15">
                 <div><span class="detail-label">Client Name:</span> <strong id="det_name"></strong></div>
-                <div><span class="detail-label">Status:</span> <span id="det_status" class="status-pill"></span></div>
                 <div><span class="detail-label">Customer Type:</span> <strong id="det_type"></strong></div>
                 <div><span class="detail-label">Phone:</span> <span id="det_phone"></span></div>
-                <div><span class="detail-label">Email:</span> <span id="det_email"></span></div>
                 <div><span class="detail-label">Date:</span> <strong id="det_date"></strong></div>
                 <div><span class="detail-label">Time:</span> <strong id="det_time"></strong></div>
                 <div><span class="detail-label">Total Booking Price:</span> <strong id="det_total"></strong></div>
+                <div><span class="detail-label">DP Payment Recorded:</span> <span style="font-size: 13px; color:#6B7280" id="det_dp_ts"></span></div>
                 <div><span class="detail-label text-green">Total Received:</span> <strong class="text-green text-lg" id="det_dp"></strong></div>
+                <div><span class="detail-label">Full Payment Recorded:</span> <span style="font-size: 13px; color:#6B7280" id="det_full_ts"></span></div>
                 <div><span class="detail-label text-red">Remaining:</span> <strong class="text-red" id="det_remain"></strong></div>
             </div>
             <div class="modal-actions mt-20">
@@ -209,7 +219,7 @@
             <form id="booking-form" class="mt-15">
                 <input type="hidden" id="booking_id">
                 <div class="form-group">
-                    <select id="customer_type" required>
+                    <select id="customer_type" required onchange="handleCustomerTypeChange()">
                         <option value="" disabled selected>Select Customer Type *</option>
                         <option value="Regular">Regular</option>
                         <option value="Vendor">Vendor</option>
@@ -223,26 +233,30 @@
                     <input type="date" id="date" required>
                     <input type="time" id="start_time" required> <span class="to-txt">to</span> <input type="time" id="end_time" required>
                 </div>
-                <div class="time-group">
-                    <div>
-                        <span class="detail-label">Total Price *</span>
-                        <input type="number" id="total_price" placeholder="Rp" oninput="calcRemaining()" required>
-                    </div>
-                    <div>
-                        <span class="detail-label text-green">Total Received *</span>
-                        <input type="number" id="dp_paid" placeholder="Rp" oninput="handleManualDP()" required>
+                
+                <!-- [NEW] Grouped price inputs to hide easily for Management -->
+                <div id="price-section">
+                    <div class="time-group">
+                        <div>
+                            <span class="detail-label">Total Price *</span>
+                            <input type="number" id="total_price" placeholder="Rp" oninput="calcRemaining()" required>
+                        </div>
+                        <div>
+                            <span class="detail-label text-green">Total Received *</span>
+                            <input type="number" id="dp_paid" placeholder="Rp" oninput="handleManualDP()" required>
+                        </div>
                     </div>
                 </div>
 
                 <div id="settlement-section" class="hidden mt-15" style="padding: 15px; border-radius: 12px; background: #ECFDF5; border: 1px solid #D1FAE5; margin-bottom: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <span style="font-size: 13px; font-weight: 600; color: #065F46;">Add Settlement</span>
-                        <button type="button" onclick="markAsFullyPaid()" style="background: #10B981; color: white; padding: 6px 12px; border-radius: 8px; border: none; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);">Settle Full</button>
+                        <button type="button" onclick="markAsFullyPaid()" style="background: #10B981; color: white; padding: 6px 12px; border-radius: 8px; border: none; font-weight: bold; font-size: 12px; cursor: pointer;">Settle Full</button>
                     </div>
                     <input type="number" id="settlement_input" placeholder="Additional Payment (Rp)" oninput="addSettlementToDP()" style="margin-bottom: 0;">
                 </div>
 
-                <p class="calc-text text-red">Remaining: <strong id="remaining-text">Rp 0</strong></p>
+                <p class="calc-text text-red" id="remaining-wrapper">Remaining: <strong id="remaining-text">Rp 0</strong></p>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" onclick="closeBookingModal()">Cancel</button>
                     <button type="submit" class="primary-btn">Save</button>
