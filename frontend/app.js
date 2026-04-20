@@ -4,7 +4,7 @@ const SOCKET_URL = API_URL.replace('/api', '');
 
 let currentUser, currentToken;
 let fullCalendarInstance = null;
-let allBookings =[];
+let allBookings = [];
 let allPettyCash =[];
 let socket = null;
 let inactivityTimer;
@@ -12,11 +12,12 @@ let lastClickedDate = null;
 let currentBaseDP = 0;
 let alertTimeout; 
 
-// View Modes for Tabs
 let viewModeBookings = 'upcoming';
 let viewModeFinance = 'upcoming';
+let financeFilterType = 'month'; // Default to THIS MONTH
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
+const formatTimestamp = (ts) => ts ? new Date(ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'short'}) : 'N/A';
 
 function showAlert(msg, isError = false) {
     const alertBox = document.getElementById('alert-box');
@@ -27,10 +28,7 @@ function showAlert(msg, isError = false) {
     
     alertTimeout = setTimeout(() => {
         alertBox.classList.add('closing');
-        setTimeout(() => {
-            alertBox.classList.add('hidden');
-            alertBox.classList.remove('closing');
-        }, 200);
+        setTimeout(() => { alertBox.classList.add('hidden'); alertBox.classList.remove('closing'); }, 200);
     }, 3000);
 }
 
@@ -38,15 +36,10 @@ function closeModalAnim(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
     modal.classList.add('closing');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-        modal.classList.remove('closing');
-    }, 200);
+    setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('closing'); }, 200);
 }
 
-function getHeaders() {
-    return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` };
-}
+function getHeaders() { return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` }; }
 
 async function safeFetch(url, options = {}) {
     try {
@@ -61,15 +54,10 @@ async function safeFetch(url, options = {}) {
 
 function resetInactivityTimer() {
     clearTimeout(inactivityTimer);
-    // [UPDATED] Check sessionStorage instead of localStorage
-    if (sessionStorage.getItem('token')) {
-        inactivityTimer = setTimeout(logout, 15 * 60 * 1000); 
-    }
+    if (sessionStorage.getItem('token')) { inactivityTimer = setTimeout(logout, 15 * 60 * 1000); }
 }
-document.onmousemove = resetInactivityTimer;
-document.onkeypress = resetInactivityTimer;
-document.onclick = resetInactivityTimer;
-document.onscroll = resetInactivityTimer;
+document.onmousemove = resetInactivityTimer; document.onkeypress = resetInactivityTimer;
+document.onclick = resetInactivityTimer; document.onscroll = resetInactivityTimer;
 
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -78,21 +66,15 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: document.getElementById('email').value, password: document.getElementById('password').value })
         });
-        // [UPDATED] Use sessionStorage so it wipes when browser closes
         sessionStorage.setItem('token', data.token);
         sessionStorage.setItem('user', JSON.stringify(data.user));
         initApp();
     } catch (err) { showAlert(err.message, true); }
 });
 
-function logout() { 
-    // [UPDATED] Clear sessionStorage
-    sessionStorage.clear(); 
-    window.location.reload(); 
-}
+function logout() { sessionStorage.clear(); window.location.reload(); }
 
 function initApp() {
-    // [UPDATED] Read from sessionStorage
     currentToken = sessionStorage.getItem('token');
     if (!currentToken) return;
 
@@ -148,7 +130,7 @@ function refreshActiveSection() {
     if (active === 'bookings') renderListTable();
     if (active === 'finance') renderFinanceTable();
     if (active === 'pettycash') renderPettyCash();
-    if (active === 'accounts') renderAccountsTable();
+    if (active === 'accounts' && currentUser && currentUser.role === 'Admin') renderAccountsTable();
 }
 
 async function fetchAllBookings() {
@@ -160,9 +142,13 @@ async function fetchPettyCash() {
 
 function isBookingRecent(dateStr, endTimeStr) {
     const dateTimeStr = `${dateStr.split('T')[0]}T${endTimeStr}`;
-    const bookingEnd = new Date(dateTimeStr);
+    return new Date(dateTimeStr) < new Date(); 
+}
+function isBookingOngoing(dateStr, startStr, endStr) {
     const now = new Date();
-    return bookingEnd < now; 
+    const start = new Date(`${dateStr.split('T')[0]}T${startStr}`);
+    const end = new Date(`${dateStr.split('T')[0]}T${endStr}`);
+    return now >= start && now <= end;
 }
 
 function toggleBookingView(mode) {
@@ -179,7 +165,19 @@ function toggleFinanceView(mode) {
     renderFinanceTable();
 }
 
-// --- RENDERING CALENDAR ---
+// [NEW] Finance Date Filter Logic
+function applyFinanceFilter() {
+    financeFilterType = document.getElementById('finance-filter-type').value;
+    if (financeFilterType === 'custom') {
+        document.getElementById('finance-start').style.display = 'block';
+        document.getElementById('finance-end').style.display = 'block';
+    } else {
+        document.getElementById('finance-start').style.display = 'none';
+        document.getElementById('finance-end').style.display = 'none';
+    }
+    renderFinanceTable();
+}
+
 function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
     if(!calendarEl) return;
@@ -247,22 +245,11 @@ function renderCalendar() {
     fullCalendarInstance.render();
 }
 
-
-// [NEW] Logic to check if a booking is happening RIGHT NOW
-function isBookingOngoing(dateStr, startStr, endStr) {
-    const now = new Date();
-    const start = new Date(`${dateStr.split('T')[0]}T${startStr}`);
-    const end = new Date(`${dateStr.split('T')[0]}T${endStr}`);
-    return now >= start && now <= end;
-}
-
-//[UPDATED] Render Bookings List
 function renderListTable() {
     const tbody = document.querySelector('#bookings-table tbody');
     const ongoingContainer = document.getElementById('ongoing-session-container');
     if(!tbody) return;
 
-    // 1. Process and Render Ongoing Sessions Banner
     const ongoingBookings = allBookings.filter(b => isBookingOngoing(b.date, b.start_time, b.end_time));
     if (ongoingContainer) {
         if (ongoingBookings.length > 0) {
@@ -286,7 +273,6 @@ function renderListTable() {
         }
     }
 
-    // 2. Filter Table based on View Mode
     let filtered = allBookings.filter(b => {
         const recent = isBookingRecent(b.date, b.end_time);
         return viewModeBookings === 'upcoming' ? !recent : recent;
@@ -303,17 +289,15 @@ function renderListTable() {
         return;
     }
 
-    // 3. Inject Table Rows (STATIC LIVE BADGE - NO PULSE)
     tbody.innerHTML = filtered.map(b => {
         const isLive = isBookingOngoing(b.date, b.start_time, b.end_time);
-        // The badge is now purely static inline CSS
         const liveBadge = isLive ? `<span style="background: #10B981; color: white; padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; margin-left: 8px; vertical-align: middle; display: inline-block; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">LIVE</span>` : '';
         const rowHighlight = isLive ? `background-color: rgba(16, 185, 129, 0.08);` : '';
 
         return `
         <tr style="${rowHighlight}">
             <td>${b.date.split('T')[0]}</td>
-            <td class="hide-mobile">${b.start_time.substring(0,5)}</td>
+            <td class="hide-mobile">${b.start_time.substring(0,5)} to ${b.end_time.substring(0,5)}</td>
             <td><strong>${b.client_name}</strong> ${liveBadge}</td>
             <td class="hide-mobile">${b.customer_type}</td>
             <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
@@ -322,21 +306,39 @@ function renderListTable() {
         </tr>
     `}).join('');
 }
-//[NEW] Keep the clock checking every 60 seconds so "Live" statuses trigger automatically
-setInterval(() => {
-    const activeEl = document.querySelector('.section:not(.hidden)');
-    if (activeEl && activeEl.id === 'bookings-section') {
-        renderListTable();
-    }
-}, 60000);
-
 
 function renderFinanceTable() {
-    let gross = 0, dp = 0, remain = 0;
     const tbody = document.querySelector('#finance-table tbody');
     if(!tbody) return;
     
-    allBookings.forEach(b => { 
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Filter Logic based on Time Period
+    let dateFiltered = allBookings.filter(b => {
+        const bDate = new Date(b.date.split('T')[0]);
+        if (financeFilterType === 'month') {
+            return bDate.getMonth() === now.getMonth() && bDate.getFullYear() === now.getFullYear();
+        } else if (financeFilterType === 'week') {
+            const startOfWeek = new Date(startOfToday);
+            startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            return bDate >= startOfWeek && bDate <= endOfWeek;
+        } else if (financeFilterType === 'day') {
+            return bDate.toDateString() === now.toDateString();
+        } else if (financeFilterType === 'custom') {
+            const startStr = document.getElementById('finance-start').value;
+            const endStr = document.getElementById('finance-end').value;
+            if (startStr && endStr) return bDate >= new Date(startStr) && bDate <= new Date(endStr);
+            return true;
+        }
+        return true; // 'all'
+    });
+
+    // Calculate Summary ONLY for the filtered period
+    let gross = 0, dp = 0, remain = 0;
+    dateFiltered.forEach(b => { 
         gross += parseFloat(b.total_price); 
         dp += parseFloat(b.dp_paid); 
         remain += parseFloat(b.remaining_payment); 
@@ -346,32 +348,33 @@ function renderFinanceTable() {
     document.getElementById('fin-dp').textContent = formatIDR(dp);
     document.getElementById('fin-remain').textContent = formatIDR(remain);
 
-    let filtered = allBookings.filter(b => {
+    // Apply View Tab Filter (Upcoming / Recent)
+    let finalFiltered = dateFiltered.filter(b => {
         const recent = isBookingRecent(b.date, b.end_time);
         return viewModeFinance === 'upcoming' ? !recent : recent;
     });
 
     if (viewModeFinance === 'recent') {
-        filtered.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
+        finalFiltered.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
     } else {
-        filtered.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
+        finalFiltered.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
     }
 
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #9CA3AF; padding: 20px;">No ${viewModeFinance} transactions found.</td></tr>`;
+    if (finalFiltered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: rgba(0,0,0,0.4); padding: 20px;">No transactions found.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = filtered.map(b => `
+    tbody.innerHTML = finalFiltered.map(b => `
         <tr>
             <td>${b.date.split('T')[0]}</td>
+            <td>${b.start_time.substring(0,5)} to ${b.end_time.substring(0,5)}</td>
             <td>
                 <strong>${b.client_name}</strong><br>
                 <span style="font-size: 12px; color: #666;">📞 ${b.client_phone}</span>
             </td>
             <td class="hide-mobile">${formatIDR(b.total_price)}</td>
             <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
-            <td class="hide-mobile text-red"><strong>${formatIDR(b.remaining_payment)}</strong></td>
             <td><span class="status-pill status-${b.status}">${b.status}</span></td>
         </tr>
     `).join('');
@@ -398,11 +401,8 @@ function renderPettyCash() {
     document.getElementById('pc-balance').textContent = formatIDR(totalIn - totalOut);
 }
 
-// --- PETTY CASH MODALS ---
-function openPcDetailModalById(id) { 
-    const t = allPettyCash.find(x => x.id === id); 
-    if(t) openPcDetailModal(t); 
-}
+// --- PETTY CASH MODALS & ADMIN WITHDRAWAL ---
+function openPcDetailModalById(id) { const t = allPettyCash.find(x => x.id === id); if(t) openPcDetailModal(t); }
 
 function openPcDetailModal(t) {
     document.getElementById('pc_det_date').textContent = t.date.split('T')[0];
@@ -443,6 +443,14 @@ function openEditPcModal(t) {
 
 function closePcModal() { closeModalAnim('pc-modal'); }
 
+async function withdrawPettyCash() {
+    if(!confirm("Are you sure you want to withdraw all balance to 0?")) return;
+    try {
+        await safeFetch(`${API_URL}/petty_cash/reset`, { method: 'POST', headers: getHeaders() });
+        showAlert("Balance withdrawn to 0!");
+    } catch (err) { showAlert(err.message, true); }
+}
+
 // --- BOOKING MODALS & SETTLEMENT LOGIC ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
@@ -452,8 +460,13 @@ function openDetailModal(b) {
     document.getElementById('det_phone').textContent = b.client_phone;
     document.getElementById('det_email').textContent = b.client_email || "N/A"; 
     document.getElementById('det_date').textContent = b.date.split('T')[0];
-    document.getElementById('det_time').textContent = `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`;
+    document.getElementById('det_time').textContent = `${b.start_time.substring(0,5)} to ${b.end_time.substring(0,5)}`;
     document.getElementById('det_total').textContent = formatIDR(b.total_price);
+    
+    // Formatting timestamps
+    document.getElementById('det_dp_ts').textContent = formatTimestamp(b.dp_timestamp);
+    document.getElementById('det_full_ts').textContent = formatTimestamp(b.full_timestamp);
+
     document.getElementById('det_dp').textContent = formatIDR(b.dp_paid);
     document.getElementById('det_remain').textContent = formatIDR(b.remaining_payment);
     document.getElementById('det_status').textContent = b.status;
@@ -465,6 +478,24 @@ function openDetailModal(b) {
 }
 
 function closeDetailModal() { closeModalAnim('detail-modal'); }
+
+function handleCustomerTypeChange() {
+    const val = document.getElementById('customer_type').value;
+    const priceSec = document.getElementById('price-section');
+    if (val === 'Management') {
+        priceSec.style.display = 'none';
+        document.getElementById('total_price').value = 0;
+        document.getElementById('dp_paid').value = 0;
+        document.getElementById('total_price').removeAttribute('required');
+        document.getElementById('dp_paid').removeAttribute('required');
+        document.getElementById('settlement-section').classList.add('hidden');
+    } else {
+        priceSec.style.display = 'block';
+        document.getElementById('total_price').setAttribute('required', 'true');
+        document.getElementById('dp_paid').setAttribute('required', 'true');
+    }
+    calcRemaining();
+}
 
 function calcRemaining() {
     const p = parseFloat(document.getElementById('total_price').value) || 0;
@@ -499,6 +530,9 @@ function openBookingModal() {
     document.getElementById('modal-title').textContent = "New Booking";
     
     currentBaseDP = 0;
+    document.getElementById('price-section').style.display = 'block';
+    document.getElementById('total_price').setAttribute('required', 'true');
+    document.getElementById('dp_paid').setAttribute('required', 'true');
     document.getElementById('settlement-section').classList.add('hidden');
 
     calcRemaining();
@@ -522,10 +556,21 @@ function openEditModal(b) {
     currentBaseDP = parseFloat(b.dp_paid) || 0;
     document.getElementById('settlement_input').value = '';
 
-    if (b.status !== 'Paid') {
-        document.getElementById('settlement-section').classList.remove('hidden');
-    } else {
+    if (b.customer_type === 'Management') {
+        document.getElementById('price-section').style.display = 'none';
+        document.getElementById('total_price').removeAttribute('required');
+        document.getElementById('dp_paid').removeAttribute('required');
         document.getElementById('settlement-section').classList.add('hidden');
+    } else {
+        document.getElementById('price-section').style.display = 'block';
+        document.getElementById('total_price').setAttribute('required', 'true');
+        document.getElementById('dp_paid').setAttribute('required', 'true');
+        
+        if (b.status !== 'Paid') {
+            document.getElementById('settlement-section').classList.remove('hidden');
+        } else {
+            document.getElementById('settlement-section').classList.add('hidden');
+        }
     }
 
     calcRemaining();
@@ -633,7 +678,11 @@ async function deleteAccount(id) {
     try { await safeFetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: getHeaders() }); renderAccountsTable(); } catch (err) { showAlert(err.message, true); }
 }
 
-// [UPDATED] Check sessionStorage instead of localStorage
+setInterval(() => {
+    const activeEl = document.querySelector('.section:not(.hidden)');
+    if (activeEl && activeEl.id === 'bookings-section') renderListTable();
+}, 60000);
+
 window.onload = () => { 
     resetInactivityTimer();
     if(sessionStorage.getItem('token')) { initApp(); }
