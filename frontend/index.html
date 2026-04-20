@@ -211,12 +211,14 @@
         </div>
     </div>
 
-    <!-- BOOKING FORM MODAL -->
+   <!-- BOOKING FORM MODAL -->
     <div id="booking-modal" class="modal hidden">
         <div class="modal-content">
             <h3 id="modal-title">New Booking</h3>
             <form id="booking-form" class="mt-15">
                 <input type="hidden" id="booking_id">
+                <input type="hidden" id="initial_dp"> <!-- [NEW] Tracks initial payment split -->
+                
                 <div class="form-group">
                     <select id="customer_type" required onchange="handleCustomerTypeChange()">
                         <option value="" disabled selected>Select Customer Type *</option>
@@ -225,6 +227,7 @@
                         <option value="Management">Management</option>
                     </select>
                 </div>
+                <!-- ... the rest of the form stays the same ... -->
                 <input type="text" id="client_name" placeholder="Client Name *" required>
                 <input type="text" id="client_phone" placeholder="Phone Number *" required>
                 <input type="email" id="client_email" placeholder="Email (Optional)">
