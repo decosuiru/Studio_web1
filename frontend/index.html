@@ -44,7 +44,7 @@
                     <h2 id="section-title">Calendar</h2>
                 </div>
                 <div class="header-right">
-                    <span id="sync-status" class="sync-indicator">🟢 Live Sync On</span>
+                    <span id="sync-status" class="sync-indicator">🟢 Live</span>
                     <button class="primary-btn shadow-btn" onclick="openBookingModal()">+ New</button>
                 </div>
             </header>
@@ -74,7 +74,6 @@
             </section>
 
             <section id="finance-section" class="section hidden">
-                <!-- [NEW] Finance Date Filter (Defaults to This Month) -->
                 <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
                     <select id="finance-filter-type" onchange="applyFinanceFilter()" style="width: auto; margin-bottom: 0;">
                         <option value="month" selected>This Month</option>
@@ -92,7 +91,6 @@
                     <div class="card bg-green"><h3>Total Received</h3><p class="amount text-green" id="fin-dp">Rp 0</p></div>
                     <div class="card bg-red"><h3>Unpaid Balance</h3><p class="amount text-red" id="fin-remain">Rp 0</p></div>
                 </div>
-                
                 <h3 class="mt-20 mb-15" style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Client Transactions</h3>
                 <div class="tab-container">
                     <button id="tab-finance-upcoming" class="tab-btn active-tab" onclick="toggleFinanceView('upcoming')">Upcoming</button>
@@ -100,7 +98,8 @@
                 </div>
                 <div class="table-container mt-15">
                     <table id="finance-table">
-                        <thead><tr><th>Date</th><th>Time</th><th>Client Info</th><th class="hide-mobile">Total</th><th class="hide-mobile">Received</th><th>Status</th></tr></thead>
+                        <!-- [UPDATED] Finance Header reflects split payments -->
+                        <thead><tr><th>Date Executed</th><th>Client Info</th><th class="hide-mobile">Type</th><th class="hide-mobile">Amount</th><th>Status</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -115,7 +114,6 @@
                 
                 <div style="display: flex; gap: 10px;" class="mb-15">
                     <button class="primary-btn shadow-btn w-full" onclick="openPcModal()">+ Add Transaction</button>
-                    <!-- [NEW] Admin Only Reset Balance -->
                     <button class="cancel-btn admin-only w-full" style="background: rgba(255,255,255,0.8); color: var(--danger); font-weight: bold; border: 1px solid var(--danger);" onclick="withdrawPettyCash()">Withdraw to 0</button>
                 </div>
 
@@ -149,7 +147,7 @@
         </main>
     </div>
 
-    <!-- PETTY CASH FORM MODAL -->
+    <!-- PETTY CASH MODALS -->
     <div id="pc-modal" class="modal hidden">
         <div class="modal-content">
             <h3 id="pc-modal-title">Add Petty Cash</h3>
@@ -169,8 +167,6 @@
             </form>
         </div>
     </div>
-
-    <!-- PETTY CASH DETAIL MODAL -->
     <div id="pc-detail-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Transaction Details</h3>
@@ -194,21 +190,17 @@
             <h3>Booking Details</h3>
             <div class="detail-grid mt-15">
                 <div><span class="detail-label">Client Name:</span> <strong id="det_name"></strong></div>
-                <!-- [RESTORED] Status -->
                 <div><span class="detail-label">Status:</span> <span id="det_status" class="status-pill"></span></div>
                 <div><span class="detail-label">Customer Type:</span> <strong id="det_type"></strong></div>
                 <div><span class="detail-label">Phone:</span> <span id="det_phone"></span></div>
-                <!-- [RESTORED] Email -->
                 <div><span class="detail-label">Email:</span> <span id="det_email"></span></div>
-                
                 <div><span class="detail-label">Date:</span> <strong id="det_date"></strong></div>
                 <div><span class="detail-label">Time:</span> <strong id="det_time"></strong></div>
                 <div><span class="detail-label">Total Booking Price:</span> <strong id="det_total"></strong></div>
-                
                 <div><span class="detail-label">DP Recorded:</span> <span style="font-size: 13px; color:#6B7280" id="det_dp_ts"></span></div>
-                <div><span class="detail-label text-green">Total Received:</span> <strong class="text-green text-lg" id="det_dp"></strong></div>
-                
-                <div><span class="detail-label">Full Payment Recorded:</span> <span style="font-size: 13px; color:#6B7280" id="det_full_ts"></span></div>
+                <div><span class="detail-label text-green">Initial DP:</span> <strong class="text-green text-lg" id="det_dp"></strong></div>
+                <div><span class="detail-label">Settlement Recorded:</span> <span style="font-size: 13px; color:#6B7280" id="det_full_ts"></span></div>
+                <div><span class="detail-label text-green">Settlement Paid:</span> <strong class="text-green text-lg" id="det_settlement"></strong></div>
                 <div><span class="detail-label text-red">Remaining:</span> <strong class="text-red" id="det_remain"></strong></div>
             </div>
             <div class="modal-actions mt-20">
@@ -241,7 +233,6 @@
                     <input type="time" id="start_time" required> <span class="to-txt">to</span> <input type="time" id="end_time" required>
                 </div>
                 
-                <!-- [NEW] Grouped price inputs to hide easily for Management -->
                 <div id="price-section">
                     <div class="time-group">
                         <div>
@@ -249,18 +240,20 @@
                             <input type="number" id="total_price" placeholder="Rp" oninput="calcRemaining()" required>
                         </div>
                         <div>
-                            <span class="detail-label text-green">Total Received *</span>
-                            <input type="number" id="dp_paid" placeholder="Rp" oninput="handleManualDP()" required>
+                            <!-- [UPDATED] Clear label for DP -->
+                            <span class="detail-label text-green">DP / Initial Payment *</span>
+                            <input type="number" id="dp_paid" placeholder="Rp" oninput="calcRemaining()" required>
                         </div>
                     </div>
                 </div>
 
                 <div id="settlement-section" class="hidden mt-15" style="padding: 15px; border-radius: 12px; background: #ECFDF5; border: 1px solid #D1FAE5; margin-bottom: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <span style="font-size: 13px; font-weight: 600; color: #065F46;">Add Settlement</span>
+                        <span style="font-size: 13px; font-weight: 600; color: #065F46;">Settlement Payment</span>
                         <button type="button" onclick="markAsFullyPaid()" style="background: #10B981; color: white; padding: 6px 12px; border-radius: 8px; border: none; font-weight: bold; font-size: 12px; cursor: pointer;">Settle Full</button>
                     </div>
-                    <input type="number" id="settlement_input" placeholder="Additional Payment (Rp)" oninput="addSettlementToDP()" style="margin-bottom: 0;">
+                    <!-- [UPDATED] Uses settlement logic purely without merging -->
+                    <input type="number" id="settlement_input" placeholder="Amount Paid (Rp)" oninput="calcRemaining()" style="margin-bottom: 0;">
                 </div>
 
                 <p class="calc-text text-red" id="remaining-wrapper">Remaining: <strong id="remaining-text">Rp 0</strong></p>
