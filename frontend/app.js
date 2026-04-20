@@ -1060,34 +1060,6 @@ function openEditModal(b) {
 }
 function closeBookingModal() { closeModalAnim('booking-modal'); }
 
-const bookingForm = document.getElementById('booking-form');
-if(bookingForm) {
-    bookingForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const payload = {
-            customer_type: document.getElementById('customer_type').value,
-            client_name: document.getElementById('client_name').value.trim(),
-            client_phone: document.getElementById('client_phone').value.trim(),
-            client_email: document.getElementById('client_email').value.trim(),
-            date: document.getElementById('date').value,
-            start_time: document.getElementById('start_time').value,
-            end_time: document.getElementById('end_time').value,
-            total_price: parseFloat(document.getElementById('total_price').value) || 0,
-            dp_paid: parseFloat(document.getElementById('dp_paid').value) || 0,
-            settlement_paid: parseFloat(document.getElementById('settlement_input').value) || 0
-        };
-        if(!payload.customer_type) return showAlert("Please select Customer Type", true);
-        const bookingId = document.getElementById('booking_id').value;
-        try {
-            await safeFetch(bookingId ? `${API_URL}/bookings/${bookingId}` : `${API_URL}/bookings`, { 
-                method: bookingId ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(payload) 
-            });
-            showAlert(bookingId ? "Updated!" : "Saved!");
-            closeBookingModal();
-        } catch (err) { showAlert(err.message, true); }
-    });
-}
-
 async function deleteFromModal(id) {
     if (!confirm("Delete this booking?")) return;
     try {
