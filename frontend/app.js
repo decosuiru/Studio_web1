@@ -499,7 +499,6 @@ function markAsFullyPaid() {
 function openBookingModal() {
     document.getElementById('booking-form').reset();
     document.getElementById('booking_id').value = "";
-    document.getElementById('initial_dp').value = 0;
     document.getElementById('modal-title').textContent = "New Booking";
     
     currentBaseDP = 0;
