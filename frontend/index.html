@@ -188,19 +188,26 @@
         </div>
     </div>
 
-    <!-- BOOKING DETAIL MODAL (Updated with Payment Timestamps) -->
+    <!-- BOOKING DETAIL MODAL -->
     <div id="detail-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Booking Details</h3>
             <div class="detail-grid mt-15">
                 <div><span class="detail-label">Client Name:</span> <strong id="det_name"></strong></div>
+                <!-- [RESTORED] Status -->
+                <div><span class="detail-label">Status:</span> <span id="det_status" class="status-pill"></span></div>
                 <div><span class="detail-label">Customer Type:</span> <strong id="det_type"></strong></div>
                 <div><span class="detail-label">Phone:</span> <span id="det_phone"></span></div>
+                <!-- [RESTORED] Email -->
+                <div><span class="detail-label">Email:</span> <span id="det_email"></span></div>
+                
                 <div><span class="detail-label">Date:</span> <strong id="det_date"></strong></div>
                 <div><span class="detail-label">Time:</span> <strong id="det_time"></strong></div>
                 <div><span class="detail-label">Total Booking Price:</span> <strong id="det_total"></strong></div>
-                <div><span class="detail-label">DP Payment Recorded:</span> <span style="font-size: 13px; color:#6B7280" id="det_dp_ts"></span></div>
+                
+                <div><span class="detail-label">DP Recorded:</span> <span style="font-size: 13px; color:#6B7280" id="det_dp_ts"></span></div>
                 <div><span class="detail-label text-green">Total Received:</span> <strong class="text-green text-lg" id="det_dp"></strong></div>
+                
                 <div><span class="detail-label">Full Payment Recorded:</span> <span style="font-size: 13px; color:#6B7280" id="det_full_ts"></span></div>
                 <div><span class="detail-label text-red">Remaining:</span> <strong class="text-red" id="det_remain"></strong></div>
             </div>
