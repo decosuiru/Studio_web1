@@ -455,25 +455,32 @@ async function withdrawPettyCash() {
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
 function openDetailModal(b) {
-    document.getElementById('det_name').textContent = b.client_name;
-    document.getElementById('det_type').textContent = b.customer_type;
-    document.getElementById('det_phone').textContent = b.client_phone;
-    document.getElementById('det_email').textContent = b.client_email || "N/A"; 
-    document.getElementById('det_date').textContent = b.date.split('T')[0];
-    document.getElementById('det_time').textContent = `${b.start_time.substring(0,5)} to ${b.end_time.substring(0,5)}`;
-    document.getElementById('det_total').textContent = formatIDR(b.total_price);
+    // Safety checks added to prevent crashing if HTML elements are missing
+    if(document.getElementById('det_name')) document.getElementById('det_name').textContent = b.client_name;
+    if(document.getElementById('det_type')) document.getElementById('det_type').textContent = b.customer_type;
+    if(document.getElementById('det_phone')) document.getElementById('det_phone').textContent = b.client_phone;
+    if(document.getElementById('det_email')) document.getElementById('det_email').textContent = b.client_email || "N/A"; 
+    
+    if(document.getElementById('det_date')) document.getElementById('det_date').textContent = b.date.split('T')[0];
+    if(document.getElementById('det_time')) document.getElementById('det_time').textContent = `${b.start_time.substring(0,5)} to ${b.end_time.substring(0,5)}`;
+    
+    if(document.getElementById('det_total')) document.getElementById('det_total').textContent = formatIDR(b.total_price);
     
     // Formatting timestamps
-    document.getElementById('det_dp_ts').textContent = formatTimestamp(b.dp_timestamp);
-    document.getElementById('det_full_ts').textContent = formatTimestamp(b.full_timestamp);
+    if(document.getElementById('det_dp_ts')) document.getElementById('det_dp_ts').textContent = formatTimestamp(b.dp_timestamp);
+    if(document.getElementById('det_full_ts')) document.getElementById('det_full_ts').textContent = formatTimestamp(b.full_timestamp);
 
-    document.getElementById('det_dp').textContent = formatIDR(b.dp_paid);
-    document.getElementById('det_remain').textContent = formatIDR(b.remaining_payment);
-    document.getElementById('det_status').textContent = b.status;
-    document.getElementById('det_status').className = `status-pill status-${b.status}`;
+    if(document.getElementById('det_dp')) document.getElementById('det_dp').textContent = formatIDR(b.dp_paid);
+    if(document.getElementById('det_remain')) document.getElementById('det_remain').textContent = formatIDR(b.remaining_payment);
+    
+    if(document.getElementById('det_status')) {
+        document.getElementById('det_status').textContent = b.status;
+        document.getElementById('det_status').className = `status-pill status-${b.status}`;
+    }
 
-    document.getElementById('btn-edit-from-detail').onclick = () => openEditModal(b);
-    document.getElementById('delete-btn').onclick = () => deleteFromModal(b.id);
+    if(document.getElementById('btn-edit-from-detail')) document.getElementById('btn-edit-from-detail').onclick = () => openEditModal(b);
+    if(document.getElementById('delete-btn')) document.getElementById('delete-btn').onclick = () => deleteFromModal(b.id);
+    
     document.getElementById('detail-modal').classList.remove('hidden', 'closing');
 }
 
