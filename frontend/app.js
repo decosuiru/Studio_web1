@@ -311,7 +311,6 @@ function renderFinanceTable() {
     const filterType = document.getElementById('finance-filter').value;
     const customDiv = document.getElementById('finance-custom');
     
-    // Show/Hide custom date picker
     if(filterType === 'custom') customDiv.classList.remove('hidden');
     else customDiv.classList.add('hidden');
 
@@ -320,16 +319,19 @@ function renderFinanceTable() {
     let allTransactions =[];
     let gross = 0, dpTotal = 0, remainTotal = 0;
 
-    // Loop through bookings to extract individual transactions
     allBookings.forEach(b => {
         const dp = parseFloat(b.dp_paid) || 0;
         const settle = parseFloat(b.settlement_paid) || 0;
         const total = parseFloat(b.total_price) || 0;
-        const bookingDate = new Date(`${b.date.split('T')[0]}T${b.start_time}`);
 
-        // 1. Calculate Summary Cards (Gross & Remaining based on Event Date in range)
+        // [FIX] Use the exact time the booking was created for Gross Calculation
+        // Fallback to event date only if created_at doesn't exist in older records
+        const eventDate = new Date(`${b.date.split('T')[0]}T${b.start_time}`);
+        const bookingCreateDate = new Date(b.created_at || b.dp_time || eventDate);
+
+        // 1. Calculate Summary Cards (Gross & Remaining based on Creation Date)
         let isBookingInRange = true;
-        if (range && (bookingDate < range.start || bookingDate > range.end)) isBookingInRange = false;
+        if (range && (bookingCreateDate < range.start || bookingCreateDate > range.end)) isBookingInRange = false;
 
         if (isBookingInRange) {
             gross += total;
@@ -339,7 +341,7 @@ function renderFinanceTable() {
         // 2. Extract DP / First Payment Transaction
         if (dp > 0 || total === 0) {
             let typeLabel = total === 0 ? "Management (Free)" : (dp >= total && settle === 0 ? "Full Payment" : "DP / First Pay");
-            let txDate = new Date(b.dp_time || b.created_at || bookingDate);
+            let txDate = new Date(b.dp_time || b.created_at || eventDate);
             
             let isTxInRange = true;
             if (range && (txDate < range.start || txDate > range.end)) isTxInRange = false;
@@ -352,7 +354,7 @@ function renderFinanceTable() {
 
         // 3. Extract Settlement / Final Payment Transaction
         if (settle > 0) {
-            let txDate = new Date(b.settlement_time || b.created_at || bookingDate);
+            let txDate = new Date(b.settlement_time || b.created_at || eventDate);
             
             let isTxInRange = true;
             if (range && (txDate < range.start || txDate > range.end)) isTxInRange = false;
@@ -364,7 +366,7 @@ function renderFinanceTable() {
         }
     });
 
-    // Update Summary Cards
+    // Update Summary Cards accurately
     safeSetText('fin-income', formatIDR(gross));
     safeSetText('fin-dp', formatIDR(dpTotal));
     safeSetText('fin-remain', formatIDR(remainTotal));
