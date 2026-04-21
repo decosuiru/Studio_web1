@@ -67,7 +67,8 @@
                 </div>
                 <div class="table-container mt-15">
                     <table id="bookings-table">
-                        <thead><tr><th>Date</th><th class="hide-mobile">Time</th><th>Client</th><th class="hide-mobile">Type</th><th class="hide-mobile">Received</th><th>Status</th><th>Action</th></tr></thead>
+                        <!-- [UPDATED] Removed hide-mobile from Time -->
+                        <thead><tr><th>Date</th><th>Time</th><th>Client</th><th class="hide-mobile">Type</th><th class="hide-mobile">Received</th><th>Status</th><th>Action</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -121,21 +122,20 @@
                     </div>
                 </div>
 
-                <div class="cards-grid mt-15 mb-20">
-                    <div class="card bg-green"><h3>Filtered Cash In</h3><p class="amount text-green" id="pc-in">Rp 0</p></div>
-                    <div class="card bg-red"><h3>Filtered Expenses</h3><p class="amount text-red" id="pc-out">Rp 0</p></div>
+                <!--[UPDATED] Removed Cash In Card -->
+                <div class="cards-grid mt-15 mb-20" style="grid-template-columns: 1fr 1fr;">
+                    <div class="card bg-red"><h3>Filtered Cash Out</h3><p class="amount text-red" id="pc-out">Rp 0</p></div>
                     <div class="card" style="border: 2px solid var(--primary);"><h3>Overall Safe Balance</h3><p class="amount" id="pc-balance">Rp 0</p></div>
                 </div>
                 
                 <div style="display:flex; gap:15px; margin-bottom: 15px;">
-                    <button class="primary-btn shadow-btn w-full" onclick="openPcModal()">+ Add Expense</button>
+                    <button class="primary-btn shadow-btn w-full" onclick="openPcModal()">+ Add Transaction</button>
                     <button class="del-btn shadow-btn admin-only" onclick="withdrawAllPettyCash()" style="width: auto; white-space: nowrap;">Withdraw All (Reset)</button>
                 </div>
 
                 <div class="table-container">
                     <table id="pc-table">
-                        <!-- Removed Type Column -->
-                        <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Action</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Description</th><th class="hide-mobile">Type</th><th>Amount</th><th>Action</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -163,15 +163,18 @@
         </main>
     </div>
 
-    <!-- PETTY CASH FORM MODAL -->
+    <!-- PETTY CASH MODALS -->
     <div id="pc-modal" class="modal hidden">
         <div class="modal-content">
-            <h3 id="pc-modal-title">Add Expense</h3>
+            <h3 id="pc-modal-title">Add Petty Cash</h3>
             <form id="pc-form" class="mt-15">
                 <input type="hidden" id="pc_id">
                 <input type="date" id="pc_date" required>
-                <input type="text" id="pc_desc" placeholder="Expense Description" required>
-                <!-- Removed Type Select -->
+                <input type="text" id="pc_desc" placeholder="Description" required>
+                <select id="pc_type" required>
+                    <option value="IN">Cash IN (+)</option>
+                    <option value="OUT">Cash OUT (-)</option>
+                </select>
                 <input type="number" id="pc_amount" placeholder="Amount (Rp)" required>
                 <div class="modal-actions mt-20">
                     <button type="button" class="cancel-btn" onclick="closePcModal()">Cancel</button>
@@ -181,13 +184,13 @@
         </div>
     </div>
 
-    <!-- PETTY CASH DETAIL MODAL -->
     <div id="pc-detail-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Transaction Details</h3>
             <div class="detail-grid mt-15">
                 <div><span class="detail-label">Date:</span> <strong id="pc_det_date"></strong></div>
                 <div><span class="detail-label">Description:</span> <strong id="pc_det_desc"></strong></div>
+                <div><span class="detail-label">Type:</span> <span id="pc_det_type" class="role-pill"></span></div>
                 <div><span class="detail-label">Amount:</span> <strong id="pc_det_amount"></strong></div>
             </div>
             <div class="modal-actions mt-20">
@@ -207,20 +210,24 @@
                 <div><span class="detail-label">Client Name:</span> <strong id="det_name"></strong></div>
                 <div><span class="detail-label">Customer Type:</span> <strong id="det_type"></strong></div>
                 <div><span class="detail-label">Phone:</span> <span id="det_phone"></span></div>
-                <!-- [FIX] Email added back so the JavaScript doesn't crash -->
-                <div><span class="detail-label">Email:</span> <span id="det_email"></span></div>
                 <div><span class="detail-label">Date:</span> <strong id="det_date"></strong></div>
                 <div style="background: rgba(249, 250, 251, 0.8); padding: 10px; border-radius: 8px;">
                     <span class="detail-label" style="font-weight: bold; color: var(--primary-dark);">Time:</span> 
                     <strong id="det_time" style="font-size: 18px; color: var(--primary);"></strong>
                 </div>
                 <div><span class="detail-label">Total Price:</span> <strong id="det_total"></strong></div>
+                
                 <div><span class="detail-label text-green">DP / First Payment:</span> <div style="text-align: right;"><strong class="text-green text-lg" id="det_dp"></strong></div></div>
                 <div id="det_settlement_row" class="hidden"><span class="detail-label text-green">Settlement / Final:</span> <div style="text-align: right;"><strong class="text-green text-lg" id="det_settlement"></strong></div></div>
+                
                 <div><span class="detail-label text-red">Remaining:</span> <strong class="text-red" id="det_remain"></strong></div>
             </div>
-            <div class="modal-actions mt-20">
-                <button type="button" class="del-btn" id="delete-btn" onclick="deleteFromModal()">Delete</button>
+
+            <!-- [NEW] Add Settlement Button directly in Detail Card -->
+            <button type="button" id="btn-settle-from-detail" class="w-full mt-15 shadow-btn" style="background: #10B981; color: white; padding: 12px; border-radius: 12px; border: none; font-weight: 600; font-size: 15px; cursor: pointer; transition: 0.2s;">💰 Add Settlement</button>
+
+            <div class="modal-actions mt-15">
+                <button type="button" class="del-btn" id="delete-btn">Delete</button>
                 <button type="button" class="cancel-btn" onclick="closeDetailModal()">Close</button>
                 <button type="button" class="primary-btn" id="btn-edit-from-detail">Edit</button>
             </div>
