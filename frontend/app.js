@@ -309,54 +309,97 @@ function renderListTable() {
 
 function renderFinanceTable() {
     const filterType = document.getElementById('finance-filter').value;
+    const customDiv = document.getElementById('finance-custom');
+    
+    // Show/Hide custom date picker
+    if(filterType === 'custom') customDiv.classList.remove('hidden');
+    else customDiv.classList.add('hidden');
+
     const range = getDateRange(filterType, document.getElementById('fin-start').value, document.getElementById('fin-end').value);
     
-    let filteredRange = allBookings;
-    if (range) {
-        filteredRange = allBookings.filter(b => {
-            const d = new Date(b.date.split('T')[0] + 'T' + b.start_time);
-            return d >= range.start && d <= range.end;
-        });
-    }
+    let allTransactions =[];
+    let gross = 0, dpTotal = 0, remainTotal = 0;
 
-    let gross = 0, dp = 0, remain = 0;
-    filteredRange.forEach(b => { 
-        gross += parseFloat(b.total_price); 
-        dp += parseFloat(b.dp_paid) + parseFloat(b.settlement_paid); 
-        remain += parseFloat(b.remaining_payment); 
+    // Loop through bookings to extract individual transactions
+    allBookings.forEach(b => {
+        const dp = parseFloat(b.dp_paid) || 0;
+        const settle = parseFloat(b.settlement_paid) || 0;
+        const total = parseFloat(b.total_price) || 0;
+        const bookingDate = new Date(`${b.date.split('T')[0]}T${b.start_time}`);
+
+        // 1. Calculate Summary Cards (Gross & Remaining based on Event Date in range)
+        let isBookingInRange = true;
+        if (range && (bookingDate < range.start || bookingDate > range.end)) isBookingInRange = false;
+
+        if (isBookingInRange) {
+            gross += total;
+            remainTotal += parseFloat(b.remaining_payment) || 0;
+        }
+
+        // 2. Extract DP / First Payment Transaction
+        if (dp > 0 || total === 0) {
+            let typeLabel = total === 0 ? "Management (Free)" : (dp >= total && settle === 0 ? "Full Payment" : "DP / First Pay");
+            let txDate = new Date(b.dp_time || b.created_at || bookingDate);
+            
+            let isTxInRange = true;
+            if (range && (txDate < range.start || txDate > range.end)) isTxInRange = false;
+
+            if (isTxInRange) {
+                allTransactions.push({ booking: b, date: txDate, amount: dp, type: typeLabel });
+                dpTotal += dp; // Add to Received Summary
+            }
+        }
+
+        // 3. Extract Settlement / Final Payment Transaction
+        if (settle > 0) {
+            let txDate = new Date(b.settlement_time || b.created_at || bookingDate);
+            
+            let isTxInRange = true;
+            if (range && (txDate < range.start || txDate > range.end)) isTxInRange = false;
+
+            if (isTxInRange) {
+                allTransactions.push({ booking: b, date: txDate, amount: settle, type: "Settlement" });
+                dpTotal += settle; // Add to Received Summary
+            }
+        }
     });
 
+    // Update Summary Cards
     safeSetText('fin-income', formatIDR(gross));
-    safeSetText('fin-dp', formatIDR(dp));
-    safeSetText('fin-remain', formatIDR(remain));
+    safeSetText('fin-dp', formatIDR(dpTotal));
+    safeSetText('fin-remain', formatIDR(remainTotal));
+
+    // Sort Transactions by Date (Newest first)
+    allTransactions.sort((a, b) => b.date - a.date);
 
     const tbody = document.querySelector('#finance-table tbody');
     if(!tbody) return;
 
-    let filteredList = filteredRange.filter(b => {
-        const recent = isBookingRecent(b.date, b.end_time);
-        return viewModeFinance === 'upcoming' ? !recent : recent;
-    });
-
-    if (viewModeFinance === 'recent') filteredList.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
-    else filteredList.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
-
-    if (filteredList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No transactions found.</td></tr>`;
+    if (allTransactions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No transactions found in this period.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = filteredList.map(b => `
+    // Render Transaction Ledger
+    tbody.innerHTML = allTransactions.map(tx => {
+        const b = tx.booking;
+        return `
         <tr>
-            <td>${b.date.split('T')[0]}</td>
-            <td><strong>${b.client_name}</strong><br><span style="font-size: 12px; color: #BBB;">📞 ${b.client_phone}</span></td>
+            <td>
+                <strong>${tx.date.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})}</strong><br>
+                <span style="font-size: 11px; opacity: 0.8;">${tx.date.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})}</span>
+            </td>
+            <td>
+                <strong>${b.client_name}</strong><br>
+                <span style="font-size: 12px; color: #BBB;">Event: ${b.date.split('T')[0]}</span>
+            </td>
             <td class="hide-mobile">${formatIDR(b.total_price)}</td>
-            <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
-            <td class="hide-mobile text-green">${formatIDR(b.settlement_paid)}</td>
-            <td class="hide-mobile text-red"><strong>${formatIDR(b.remaining_payment)}</strong></td>
+            <td><span class="role-pill" style="background: rgba(16, 185, 129, 0.15); color: #10B981;">${tx.type}</span></td>
+            <td class="text-green">+ ${formatIDR(tx.amount)}</td>
             <td><span class="status-pill status-${b.status}">${b.status}</span></td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function renderPettyCash() {
