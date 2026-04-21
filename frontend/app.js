@@ -4,11 +4,12 @@ const SOCKET_URL = API_URL.replace('/api', '');
 
 let currentUser, currentToken;
 let fullCalendarInstance = null;
-let allBookings = [];
+let allBookings =[];
 let allPettyCash =[];
 let socket = null;
 let inactivityTimer;
 let lastClickedDate = null; 
+let currentBaseDP = 0;
 let alertTimeout; 
 
 let viewModeBookings = 'upcoming';
@@ -160,7 +161,7 @@ function getDateRange(filterType, customStart, customEnd) {
         start = new Date(customStart); start.setHours(0,0,0,0);
         end = new Date(customEnd); end.setHours(23,59,59,999);
     } else {
-        return null; // all time
+        return null; 
     }
     return { start, end };
 }
@@ -234,7 +235,7 @@ function renderCalendar() {
                 document.getElementById('mobile-event-date').textContent = new Date(info.dateStr).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
                 document.getElementById('mobile-event-list').classList.remove('hidden');
                 
-                if (dayBookings.length === 0) itemsEl.innerHTML = '<p style="color: #9CA3AF; text-align: center; margin-top: 20px;">No Events</p>';
+                if (dayBookings.length === 0) itemsEl.innerHTML = '<p style="color: rgba(255,255,255,0.7); text-align: center; margin-top: 20px;">No Events</p>';
                 else itemsEl.innerHTML = dayBookings.map(b => `
                     <div class="mobile-event-card" onclick="openDetailModalById(${b.id})">
                         <div class="left-info"><span class="time">${b.start_time.substring(0,5)}</span><span class="client">${b.client_name}</span></div>
@@ -321,9 +322,9 @@ function renderFinanceTable() {
         remain += parseFloat(b.remaining_payment); 
     });
 
-    document.getElementById('fin-income').textContent = formatIDR(gross);
-    document.getElementById('fin-dp').textContent = formatIDR(dp);
-    document.getElementById('fin-remain').textContent = formatIDR(remain);
+    const inc = document.getElementById('fin-income'); if(inc) inc.textContent = formatIDR(gross);
+    const dpe = document.getElementById('fin-dp'); if(dpe) dpe.textContent = formatIDR(dp);
+    const rem = document.getElementById('fin-remain'); if(rem) rem.textContent = formatIDR(remain);
 
     const tbody = document.querySelector('#finance-table tbody');
     if(!tbody) return;
@@ -370,87 +371,112 @@ function renderPettyCash() {
         if(t.type === 'IN') filteredIn += parseFloat(t.amount); else filteredOut += parseFloat(t.amount);
     });
 
-    // TRUE Overall Balance
     let totalIn = 0, totalOut = 0;
     allPettyCash.forEach(t => { if(t.type === 'IN') totalIn += parseFloat(t.amount); else totalOut += parseFloat(t.amount); });
 
-    document.getElementById('pc-in').textContent = formatIDR(filteredIn);
-    document.getElementById('pc-out').textContent = formatIDR(filteredOut);
-    document.getElementById('pc-balance').textContent = formatIDR(totalIn - totalOut); // Always true safe balance
+    const pIn = document.getElementById('pc-in'); if(pIn) pIn.textContent = formatIDR(filteredIn);
+    const pOut = document.getElementById('pc-out'); if(pOut) pOut.textContent = formatIDR(filteredOut);
+    const pBal = document.getElementById('pc-balance'); if(pBal) pBal.textContent = formatIDR(totalIn - totalOut); 
 
     const tbody = document.querySelector('#pc-table tbody');
     if(!tbody) return;
 
     if (filteredRange.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No transactions found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No transactions found.</td></tr>`;
         return;
     }
 
+    // [UPDATED] Removed type formatting, hardcoded all rows as Expense (Red/-)
     tbody.innerHTML = filteredRange.map(t => `
         <tr>
             <td>${t.date.split('T')[0]}</td>
             <td>${t.description}</td>
-            <td class="hide-mobile"><span class="role-pill" style="background:${t.type==='IN'?'#D1FAE5':'#FEE2E2'}; color:${t.type==='IN'?'#065F46':'#991B1B'}">${t.type}</span></td>
-            <td class="${t.type==='IN'?'text-green':'text-red'}">${t.type==='IN'?'+':'-'} ${formatIDR(t.amount)}</td>
+            <td class="text-red">- ${formatIDR(t.amount)}</td>
             <td><button class="primary-btn" style="padding: 6px 12px" onclick="openPcDetailModalById(${t.id})">Detail</button></td>
         </tr>
     `).join('');
 }
 
-// --- ADMIN WITHDRAW (PETTY CASH RESET) ---
-async function withdrawAllPettyCash() {
-    let totalIn = 0, totalOut = 0;
-    allPettyCash.forEach(t => { if(t.type === 'IN') totalIn += parseFloat(t.amount); else totalOut += parseFloat(t.amount); });
-    const balance = totalIn - totalOut;
-    
-    if (balance <= 0) return showAlert("Current balance is already 0.", true);
-    if (!confirm(`Are you sure you want to withdraw the full balance of ${formatIDR(balance)}? This will record an OUT transaction and reset the safe to 0.`)) return;
+// --- PETTY CASH MODALS ---
+function openPcDetailModalById(id) { const t = allPettyCash.find(x => x.id === id); if(t) openPcDetailModal(t); }
 
-    try {
-        await safeFetch(`${API_URL}/petty_cash`, { 
-            method: 'POST', headers: getHeaders(), 
-            body: JSON.stringify({
-                date: new Date().toISOString().split('T')[0],
-                description: "Management Withdrawal",
-                type: "OUT",
-                amount: balance
-            }) 
-        });
-        showAlert("Balance successfully reset to 0!");
-    } catch(err) { showAlert(err.message, true); }
+function openPcDetailModal(t) {
+    document.getElementById('pc_det_date').textContent = t.date.split('T')[0];
+    document.getElementById('pc_det_desc').textContent = t.description;
+    
+    // Always Red
+    document.getElementById('pc_det_amount').textContent = formatIDR(t.amount);
+    document.getElementById('pc_det_amount').className = 'text-red text-lg';
+
+    document.getElementById('btn-edit-pc').onclick = () => openEditPcModal(t);
+    document.getElementById('btn-del-pc').onclick = () => deletePettyCash(t.id);
+    document.getElementById('pc-detail-modal').classList.remove('hidden', 'closing');
 }
 
-// --- MODALS ---
+function closePcDetailModal() { closeModalAnim('pc-detail-modal'); }
+
+function openPcModal() {
+    document.getElementById('pc-form').reset();
+    document.getElementById('pc_id').value = "";
+    document.getElementById('pc-modal-title').textContent = "Add Expense";
+    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
+}
+
+function openEditPcModal(t) {
+    closePcDetailModal();
+    document.getElementById('pc_id').value = t.id;
+    document.getElementById('pc-modal-title').textContent = "Edit Expense";
+    document.getElementById('pc_date').value = t.date.split('T')[0];
+    document.getElementById('pc_desc').value = t.description;
+    document.getElementById('pc_amount').value = t.amount;
+    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
+}
+function closePcModal() { closeModalAnim('pc-modal'); }
+
+// --- BOOKING MODALS & SETTLEMENT LOGIC ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
 function openDetailModal(b) {
-    document.getElementById('det_name').textContent = b.client_name;
-    document.getElementById('det_type').textContent = b.customer_type;
-    document.getElementById('det_phone').textContent = b.client_phone;
-    document.getElementById('det_email').textContent = b.client_email || "N/A"; 
-    document.getElementById('det_date').textContent = b.date.split('T')[0];
-    document.getElementById('det_time').textContent = `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`;
-    document.getElementById('det_total').textContent = formatIDR(b.total_price);
+    if(!b) return;
     
-    // DP and Settlement Separation
-    document.getElementById('det_dp').innerHTML = `${formatIDR(b.dp_paid)} <br><span style="font-size:11px; opacity:0.8; font-weight:normal;">${formatDateTime(b.dp_time)}</span>`;
+    const detName = document.getElementById('det_name'); if(detName) detName.textContent = b.client_name;
+    const detType = document.getElementById('det_type'); if(detType) detType.textContent = b.customer_type;
+    const detPhone = document.getElementById('det_phone'); if(detPhone) detPhone.textContent = b.client_phone;
+    
+    // [FIX] Email is safe now
+    const detEmail = document.getElementById('det_email'); if(detEmail) detEmail.textContent = b.client_email || "N/A"; 
+    
+    const detDate = document.getElementById('det_date'); if(detDate) detDate.textContent = b.date.split('T')[0];
+    const detTime = document.getElementById('det_time'); if(detTime) detTime.textContent = `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`;
+    const detTotal = document.getElementById('det_total'); if(detTotal) detTotal.textContent = formatIDR(b.total_price);
+    
+    const detDp = document.getElementById('det_dp');
+    if(detDp) detDp.innerHTML = `${formatIDR(b.dp_paid)} <br><span style="font-size:11px; opacity:0.8; font-weight:normal;">${formatDateTime(b.dp_time)}</span>`;
     
     const settleRow = document.getElementById('det_settlement_row');
-    if (parseFloat(b.settlement_paid) > 0) {
-        settleRow.classList.remove('hidden');
-        document.getElementById('det_settlement').innerHTML = `${formatIDR(b.settlement_paid)} <br><span style="font-size:11px; opacity:0.8; font-weight:normal;">${formatDateTime(b.settlement_time)}</span>`;
-    } else {
-        settleRow.classList.add('hidden');
+    const detSettle = document.getElementById('det_settlement');
+    if (settleRow && detSettle) {
+        if (parseFloat(b.settlement_paid) > 0) {
+            settleRow.classList.remove('hidden');
+            detSettle.innerHTML = `${formatIDR(b.settlement_paid)} <br><span style="font-size:11px; opacity:0.8; font-weight:normal;">${formatDateTime(b.settlement_time)}</span>`;
+        } else {
+            settleRow.classList.add('hidden');
+        }
     }
 
-    document.getElementById('det_remain').textContent = formatIDR(b.remaining_payment);
-    document.getElementById('det_status').textContent = b.status;
-    document.getElementById('det_status').className = `status-pill status-${b.status}`;
+    const detRemain = document.getElementById('det_remain'); if(detRemain) detRemain.textContent = formatIDR(b.remaining_payment);
+    const detStatus = document.getElementById('det_status'); 
+    if(detStatus) {
+        detStatus.textContent = b.status;
+        detStatus.className = `status-pill status-${b.status}`;
+    }
 
-    document.getElementById('btn-edit-from-detail').onclick = () => openEditModal(b);
-    document.getElementById('delete-btn').onclick = () => deleteFromModal(b.id);
+    const btnEdit = document.getElementById('btn-edit-from-detail'); if(btnEdit) btnEdit.onclick = () => openEditModal(b);
+    const btnDel = document.getElementById('delete-btn'); if(btnDel) btnDel.onclick = () => deleteFromModal(b.id);
     document.getElementById('detail-modal').classList.remove('hidden', 'closing');
 }
+
+function closeDetailModal() { closeModalAnim('detail-modal'); }
 
 function handleCustomerTypeChange() {
     const type = document.getElementById('customer_type').value;
@@ -473,7 +499,6 @@ function handleCustomerTypeChange() {
         const dp = parseFloat(document.getElementById('dp_paid').value) || 0;
         const total = parseFloat(document.getElementById('total_price').value) || 0;
         
-        // Show settlement ONLY if editing, DP exists, and not fully paid
         if (isEdit && dp > 0 && dp < total) {
             settleSec.classList.remove('hidden');
         }
@@ -488,10 +513,19 @@ function calcRemaining() {
     document.getElementById('remaining-text').textContent = formatIDR(t - dp - sp);
 }
 
+function handleManualDP() {
+    currentBaseDP = parseFloat(document.getElementById('dp_paid').value) || 0;
+    document.getElementById('settlement_input').value = '';
+    calcRemaining();
+}
+
+function addSettlementToDP() {
+    calcRemaining();
+}
+
 function markAsFullyPaid() {
     const t = parseFloat(document.getElementById('total_price').value) || 0;
-    const dp = parseFloat(document.getElementById('dp_paid').value) || 0;
-    const remain = t - dp;
+    const remain = t - currentBaseDP;
     if (remain > 0) {
         document.getElementById('settlement_input').value = remain;
         calcRemaining();
@@ -528,6 +562,7 @@ function openEditModal(b) {
     document.getElementById('dp_paid').value = b.dp_paid;
     document.getElementById('settlement_input').value = b.settlement_paid;
     
+    currentBaseDP = parseFloat(b.dp_paid) || 0;
     handleCustomerTypeChange();
     document.getElementById('booking-modal').classList.remove('hidden', 'closing');
 }
@@ -563,40 +598,14 @@ if(bookingForm) {
     });
 }
 
-// ... Petty Cash details logic remains the same ...
-function openPcDetailModalById(id) { const t = allPettyCash.find(x => x.id === id); if(t) openPcDetailModal(t); }
-function openPcDetailModal(t) {
-    document.getElementById('pc_det_date').textContent = t.date.split('T')[0];
-    document.getElementById('pc_det_desc').textContent = t.description;
-    const typeEl = document.getElementById('pc_det_type');
-    typeEl.textContent = t.type;
-    typeEl.style.background = t.type === 'IN' ? '#D1FAE5' : '#FEE2E2';
-    typeEl.style.color = t.type === 'IN' ? '#065F46' : '#991B1B';
-    document.getElementById('pc_det_amount').textContent = formatIDR(t.amount);
-    document.getElementById('pc_det_amount').className = t.type === 'IN' ? 'text-green text-lg' : 'text-red text-lg';
-    document.getElementById('btn-edit-pc').onclick = () => openEditPcModal(t);
-    document.getElementById('btn-del-pc').onclick = () => deletePettyCash(t.id);
-    document.getElementById('pc-detail-modal').classList.remove('hidden', 'closing');
+async function deleteFromModal(id) {
+    if (!confirm("Delete this booking?")) return;
+    try {
+        await safeFetch(`${API_URL}/bookings/${id}`, { method: 'DELETE', headers: getHeaders() });
+        showAlert("Deleted!");
+        closeModalAnim('detail-modal');
+    } catch (err) { showAlert(err.message, true); }
 }
-function closePcDetailModal() { closeModalAnim('pc-detail-modal'); }
-
-function openPcModal() {
-    document.getElementById('pc-form').reset();
-    document.getElementById('pc_id').value = "";
-    document.getElementById('pc-modal-title').textContent = "Add Petty Cash";
-    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
-}
-function openEditPcModal(t) {
-    closePcDetailModal();
-    document.getElementById('pc_id').value = t.id;
-    document.getElementById('pc-modal-title').textContent = "Edit Petty Cash";
-    document.getElementById('pc_date').value = t.date.split('T')[0];
-    document.getElementById('pc_desc').value = t.description;
-    document.getElementById('pc_type').value = t.type;
-    document.getElementById('pc_amount').value = t.amount;
-    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
-}
-function closePcModal() { closeModalAnim('pc-modal'); }
 
 const pcForm = document.getElementById('pc-form');
 if(pcForm) {
@@ -606,39 +615,77 @@ if(pcForm) {
         const payload = {
             date: document.getElementById('pc_date').value,
             description: document.getElementById('pc_desc').value.trim(),
-            type: document.getElementById('pc_type').value,
+            type: 'OUT', // Hardcoded as Expense
             amount: parseFloat(document.getElementById('pc_amount').value)
         };
         try {
-            await safeFetch(pcId ? `${API_URL}/petty_cash/${pcId}` : `${API_URL}/petty_cash`, { method: pcId ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
+            await safeFetch(pcId ? `${API_URL}/petty_cash/${pcId}` : `${API_URL}/petty_cash`, { 
+                method: pcId ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(payload) 
+            });
             showAlert(pcId ? "Transaction updated!" : "Transaction added!");
             closePcModal();
         } catch (err) { showAlert(err.message, true); }
     });
 }
+
 async function deletePettyCash(id) {
     if(!confirm("Delete transaction?")) return;
-    try { await safeFetch(`${API_URL}/petty_cash/${id}`, { method: 'DELETE', headers: getHeaders() }); showAlert("Transaction deleted"); closePcDetailModal(); } catch(err) { showAlert(err.message, true); }
+    try {
+        await safeFetch(`${API_URL}/petty_cash/${id}`, { method: 'DELETE', headers: getHeaders() });
+        showAlert("Transaction deleted");
+        closePcDetailModal();
+    } catch(err) { showAlert(err.message, true); }
 }
-async function deleteFromModal(id) {
-    if (!confirm("Delete this booking?")) return;
-    try { await safeFetch(`${API_URL}/bookings/${id}`, { method: 'DELETE', headers: getHeaders() }); showAlert("Deleted!"); closeModalAnim('detail-modal'); } catch (err) { showAlert(err.message, true); }
+
+// --- ADMIN WITHDRAW (PETTY CASH RESET) ---
+async function withdrawAllPettyCash() {
+    let totalIn = 0, totalOut = 0;
+    allPettyCash.forEach(t => { if(t.type === 'IN') totalIn += parseFloat(t.amount); else totalOut += parseFloat(t.amount); });
+    const balance = totalIn - totalOut;
+    
+    if (balance <= 0) return showAlert("Current safe balance is already 0.", true);
+    if (!confirm(`Withdraw full balance of ${formatIDR(balance)}? This creates an OUT transaction and resets the safe to 0.`)) return;
+
+    try {
+        await safeFetch(`${API_URL}/petty_cash`, { 
+            method: 'POST', headers: getHeaders(), 
+            body: JSON.stringify({
+                date: new Date().toISOString().split('T')[0],
+                description: "Management Withdrawal",
+                type: "OUT",
+                amount: balance
+            }) 
+        });
+        showAlert("Balance reset to 0!");
+    } catch(err) { showAlert(err.message, true); }
 }
+
 async function renderAccountsTable() {
     try {
         const users = await safeFetch(`${API_URL}/users`, { headers: getHeaders() });
         const tbody = document.querySelector('#accounts-table tbody');
         if(!tbody) return;
-        tbody.innerHTML = users.map(u => `<tr><td><strong>${u.email}</strong></td><td><span class="role-pill">${u.role}</span></td><td class="hide-mobile">${new Date(u.created_at).toLocaleDateString()}</td><td><button class="del-btn" style="padding:6px 12px" onclick="deleteAccount(${u.id})">Del</button></td></tr>`).join('');
+        tbody.innerHTML = users.map(u => `
+            <tr><td><strong>${u.email}</strong></td><td><span class="role-pill">${u.role}</span></td>
+            <td class="hide-mobile">${new Date(u.created_at).toLocaleDateString()}</td>
+            <td><button class="del-btn" style="padding:6px 12px" onclick="deleteAccount(${u.id})">Del</button></td></tr>
+        `).join('');
     } catch (err) { console.error(err); }
 }
+
 const accForm = document.getElementById('account-form');
 if(accForm) {
     accForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        try { await safeFetch(`${API_URL}/users`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ role: document.getElementById('acc_role').value, email: document.getElementById('acc_email').value.trim(), password: document.getElementById('acc_password').value }) }); showAlert("Account created!"); document.getElementById('account-form').reset(); renderAccountsTable(); } catch (err) { showAlert(err.message, true); }
+        try {
+            await safeFetch(`${API_URL}/users`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({
+                role: document.getElementById('acc_role').value, email: document.getElementById('acc_email').value.trim(), password: document.getElementById('acc_password').value
+            }) });
+            showAlert("Account created!"); document.getElementById('account-form').reset(); renderAccountsTable();
+        } catch (err) { showAlert(err.message, true); }
     });
 }
+
 async function deleteAccount(id) {
     if(!confirm("Delete account?")) return;
     try { await safeFetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: getHeaders() }); renderAccountsTable(); } catch (err) { showAlert(err.message, true); }
