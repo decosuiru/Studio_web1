@@ -76,7 +76,7 @@
 
             <section id="finance-section" class="section hidden">
                 <div class="filter-bar">
-                    <select id="finance-filter" onchange="handleFinanceFilter()">
+                    <select id="finance-filter" onchange="renderFinanceTable()">
                         <option value="month" selected>This Month</option>
                         <option value="day">Today</option>
                         <option value="week">This Week</option>
@@ -90,19 +90,14 @@
                 </div>
 
                 <div class="cards-grid mt-15">
-                    <div class="card"><h3>Total Gross</h3><p class="amount" id="fin-income">Rp 0</p></div>
+                    <div class="card"><h3>Gross Booking</h3><p class="amount" id="fin-income">Rp 0</p></div>
                     <div class="card bg-green"><h3>Total Received</h3><p class="amount text-green" id="fin-dp">Rp 0</p></div>
                     <div class="card bg-red"><h3>Unpaid Balance</h3><p class="amount text-red" id="fin-remain">Rp 0</p></div>
                 </div>
-                <h3 class="mt-20 mb-15" style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Client Transactions</h3>
-                <div class="tab-container">
-                    <button id="tab-finance-upcoming" class="tab-btn active-tab" onclick="toggleFinanceView('upcoming')">Upcoming</button>
-                    <button id="tab-finance-recent" class="tab-btn" onclick="toggleFinanceView('recent')">Recent (Past)</button>
-                </div>
+                <h3 class="mt-20 mb-15" style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Transaction History</h3>
                 <div class="table-container mt-15">
                     <table id="finance-table">
-                        <!-- [UPDATED] Added DP Paid and Settlement columns -->
-                        <thead><tr><th>Date</th><th>Client Info</th><th class="hide-mobile">Total</th><th class="hide-mobile">DP Paid</th><th class="hide-mobile">Settlement</th><th class="hide-mobile">Remaining</th><th>Status</th></tr></thead>
+                        <thead><tr><th>Date & Time</th><th>Client Info</th><th class="hide-mobile">Total Booking</th><th>Type</th><th>Amount Received</th><th>Status</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -264,7 +259,7 @@
                     </div>
                     <div>
                         <span class="detail-label text-green">DP Paid *</span>
-                        <input type="number" id="dp_paid" placeholder="Rp" oninput="handleManualDP()" required>
+                        <input type="number" id="dp_paid" placeholder="Rp" oninput="calcRemaining()" required>
                     </div>
                 </div>
 
