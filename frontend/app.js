@@ -9,15 +9,18 @@ let allPettyCash =[];
 let socket = null;
 let inactivityTimer;
 let lastClickedDate = null; 
-let currentBaseDP = 0;
 let alertTimeout; 
 
 let viewModeBookings = 'upcoming';
 let viewModeFinance = 'upcoming';
-let financeFilterType = 'month'; 
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
-const formatTimestamp = (ts) => ts ? new Date(ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'short'}) : 'N/A';
+
+function formatDateTime(ts) {
+    if(!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour:'2-digit', minute:'2-digit' });
+}
 
 function showAlert(msg, isError = false) {
     const alertBox = document.getElementById('alert-box');
@@ -25,6 +28,7 @@ function showAlert(msg, isError = false) {
     alertBox.textContent = msg;
     alertBox.className = `alert ${isError ? 'error' : ''}`;
     alertBox.classList.remove('hidden', 'closing');
+    
     alertTimeout = setTimeout(() => {
         alertBox.classList.add('closing');
         setTimeout(() => { alertBox.classList.add('hidden'); alertBox.classList.remove('closing'); }, 200);
@@ -38,12 +42,15 @@ function closeModalAnim(modalId) {
     setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('closing'); }, 200);
 }
 
-function getHeaders() { return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` }; }
+function getHeaders() {
+    return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` };
+}
 
 async function safeFetch(url, options = {}) {
     try {
         const res = await fetch(url, options);
-        if (!res.headers.get("content-type")?.includes("application/json")) throw new Error("API Route Error");
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) throw new Error("API Route Error");
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Server error");
         return data;
@@ -52,10 +59,9 @@ async function safeFetch(url, options = {}) {
 
 function resetInactivityTimer() {
     clearTimeout(inactivityTimer);
-    if (sessionStorage.getItem('token')) { inactivityTimer = setTimeout(logout, 15 * 60 * 1000); }
+    if (sessionStorage.getItem('token')) inactivityTimer = setTimeout(logout, 15 * 60 * 1000); 
 }
-document.onmousemove = resetInactivityTimer; document.onkeypress = resetInactivityTimer;
-document.onclick = resetInactivityTimer; document.onscroll = resetInactivityTimer;
+document.onmousemove = document.onkeypress = document.onclick = document.onscroll = resetInactivityTimer;
 
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -79,6 +85,7 @@ function initApp() {
     currentUser = JSON.parse(sessionStorage.getItem('user'));
     document.getElementById('login-view').classList.add('hidden', 'closing');
     document.getElementById('app-view').classList.remove('hidden');
+    
     if (currentUser.role !== 'Admin') document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
     
     initRealTime();
@@ -105,12 +112,15 @@ async function showSection(section) {
     document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
     const secEl = document.getElementById(`${section}-section`);
     if(secEl) secEl.classList.remove('hidden');
+    
     const titleEl = document.getElementById('section-title');
     if(titleEl) titleEl.textContent = section.charAt(0).toUpperCase() + section.slice(1).replace('cash', ' Cash');
 
     if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
+
     await fetchAllBookings();
     if (section === 'pettycash') await fetchPettyCash();
+
     refreshActiveSection();
 }
 
@@ -122,16 +132,51 @@ function refreshActiveSection() {
     if (active === 'bookings') renderListTable();
     if (active === 'finance') renderFinanceTable();
     if (active === 'pettycash') renderPettyCash();
-    if (active === 'accounts' && currentUser && currentUser.role === 'Admin') renderAccountsTable();
+    if (active === 'accounts') renderAccountsTable();
 }
 
 async function fetchAllBookings() { try { allBookings = await safeFetch(`${API_URL}/bookings`, { headers: getHeaders() }); } catch (err) {} }
 async function fetchPettyCash() { try { allPettyCash = await safeFetch(`${API_URL}/petty_cash`, { headers: getHeaders() }); } catch (err) {} }
 
-function isBookingRecent(dateStr, endTimeStr) { return new Date(`${dateStr.split('T')[0]}T${endTimeStr}`) < new Date(); }
-function isBookingOngoing(dateStr, startStr, endStr) {
+function isBookingRecent(dateStr, endTimeStr) {
+    return new Date(`${dateStr.split('T')[0]}T${endTimeStr}`) < new Date();
+}
+
+// --- FILTER LOGIC ---
+function getDateRange(filterType, customStart, customEnd) {
     const now = new Date();
-    return now >= new Date(`${dateStr.split('T')[0]}T${startStr}`) && now <= new Date(`${dateStr.split('T')[0]}T${endStr}`);
+    let start, end;
+    if (filterType === 'day') {
+        start = new Date(now.setHours(0,0,0,0));
+        end = new Date(now.setHours(23,59,59,999));
+    } else if (filterType === 'week') {
+        const first = now.getDate() - now.getDay();
+        start = new Date(new Date().setDate(first)); start.setHours(0,0,0,0);
+        end = new Date(start); end.setDate(end.getDate() + 6); end.setHours(23,59,59,999);
+    } else if (filterType === 'month') {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23,59,59,999);
+    } else if (filterType === 'custom' && customStart && customEnd) {
+        start = new Date(customStart); start.setHours(0,0,0,0);
+        end = new Date(customEnd); end.setHours(23,59,59,999);
+    } else {
+        return null; // all time
+    }
+    return { start, end };
+}
+
+function handleFinanceFilter() {
+    const val = document.getElementById('finance-filter').value;
+    const custom = document.getElementById('finance-custom');
+    if(val === 'custom') custom.classList.remove('hidden');
+    else { custom.classList.add('hidden'); renderFinanceTable(); }
+}
+
+function handlePcFilter() {
+    const val = document.getElementById('pc-filter').value;
+    const custom = document.getElementById('pc-custom');
+    if(val === 'custom') custom.classList.remove('hidden');
+    else { custom.classList.add('hidden'); renderPettyCash(); }
 }
 
 function toggleBookingView(mode) {
@@ -148,36 +193,14 @@ function toggleFinanceView(mode) {
     renderFinanceTable();
 }
 
-// [NEW] Advanced Date Filtering Engine
-function applyFinanceFilter() {
-    financeFilterType = document.getElementById('finance-filter-type').value;
-    document.getElementById('finance-start').style.display = financeFilterType === 'custom' ? 'block' : 'none';
-    document.getElementById('finance-end').style.display = financeFilterType === 'custom' ? 'block' : 'none';
-    renderFinanceTable();
-}
-
-function isDateInFilter(dateString) {
-    if (!dateString) return false;
-    const target = new Date(dateString.split('T')[0]);
+function isBookingOngoing(dateStr, startStr, endStr) {
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    if (financeFilterType === 'month') return target.getMonth() === now.getMonth() && target.getFullYear() === now.getFullYear();
-    if (financeFilterType === 'week') {
-        const startOfWeek = new Date(startOfToday); startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
-        const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate() + 6);
-        return target >= startOfWeek && target <= endOfWeek;
-    }
-    if (financeFilterType === 'day') return target.toDateString() === now.toDateString();
-    if (financeFilterType === 'custom') {
-        const startStr = document.getElementById('finance-start').value;
-        const endStr = document.getElementById('finance-end').value;
-        if (startStr && endStr) return target >= new Date(startStr) && target <= new Date(endStr);
-    }
-    return true;
+    const start = new Date(`${dateStr.split('T')[0]}T${startStr}`);
+    const end = new Date(`${dateStr.split('T')[0]}T${endStr}`);
+    return now >= start && now <= end;
 }
 
-// --- RENDERING ---
+// --- RENDERING CALENDAR ---
 function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
     if(!calendarEl) return;
@@ -195,32 +218,29 @@ function renderCalendar() {
         initialView: 'dayGridMonth', height: isMobile ? 'auto' : '100%', contentHeight: 'auto',
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
         editable: false, events: events,
-        eventClick: (info) => { openDetailModal(info.event.extendedProps); },
+        eventClick: (info) => { if(!isMobile) openDetailModal(info.event.extendedProps); },
         dateClick: (info) => { 
             if (isMobile) {
-                if (lastClickedDate === info.dateStr) { fullCalendarInstance.changeView('timeGridDay', info.dateStr); lastClickedDate = null; return; }
+                if (lastClickedDate === info.dateStr) {
+                    fullCalendarInstance.changeView('timeGridDay', info.dateStr);
+                    lastClickedDate = null; return;
+                }
                 lastClickedDate = info.dateStr; 
                 document.querySelectorAll('.selected-date').forEach(el => el.classList.remove('selected-date'));
                 info.dayEl.classList.add('selected-date');
 
                 const dayBookings = allBookings.filter(b => b.date.split('T')[0] === info.dateStr);
-                const listEl = document.getElementById('mobile-event-list');
                 const itemsEl = document.getElementById('mobile-event-items');
-                
                 document.getElementById('mobile-event-date').textContent = new Date(info.dateStr).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
-                listEl.classList.remove('hidden');
+                document.getElementById('mobile-event-list').classList.remove('hidden');
                 
-                if (dayBookings.length === 0) {
-                    itemsEl.innerHTML = '<p style="color: rgba(255,255,255,0.6); text-align: center; margin-top: 20px;">No Events</p>';
-                } else {
-                    itemsEl.innerHTML = dayBookings.map(b => `
-                        <div class="mobile-event-card" onclick="openDetailModalById(${b.id})">
-                            <div class="left-info"><span class="time">${b.start_time.substring(0,5)}</span><span class="client">${b.client_name}</span></div>
-                            <div><span class="status-pill status-${b.status}">${b.status}</span></div>
-                        </div>
-                    `).join('');
-                }
-            } else { fullCalendarInstance.changeView('timeGridDay', info.dateStr); }
+                if (dayBookings.length === 0) itemsEl.innerHTML = '<p style="color: #9CA3AF; text-align: center; margin-top: 20px;">No Events</p>';
+                else itemsEl.innerHTML = dayBookings.map(b => `
+                    <div class="mobile-event-card" onclick="openDetailModalById(${b.id})">
+                        <div class="left-info"><span class="time">${b.start_time.substring(0,5)}</span><span class="client">${b.client_name}</span></div>
+                        <div><span class="status-pill status-${b.status}">${b.status}</span></div>
+                    </div>`).join('');
+            } else fullCalendarInstance.changeView('timeGridDay', info.dateStr);
         }
     });
     fullCalendarInstance.render();
@@ -233,19 +253,23 @@ function renderListTable() {
 
     const ongoingBookings = allBookings.filter(b => isBookingOngoing(b.date, b.start_time, b.end_time));
     if (ongoingContainer) {
-        ongoingContainer.innerHTML = ongoingBookings.length > 0 ? ongoingBookings.map(b => `
-            <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%); color: white; padding: 20px 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4); display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.4); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); flex-wrap: wrap; gap: 15px;" onclick="openDetailModalById(${b.id})">
-                <div style="flex: 1;">
-                    <h3 style="color: rgba(255,255,255,0.95); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;"><span class="live-dot"></span> ONGOING SESSION</h3>
-                    <div style="font-size: 24px; font-weight: 800; margin-bottom: 4px;">${b.client_name}</div>
-                    <div style="font-size: 14px; opacity: 0.95; font-weight: 500;">${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)} &nbsp;|&nbsp; ${b.customer_type}</div>
+        if (ongoingBookings.length > 0) {
+            ongoingContainer.innerHTML = ongoingBookings.map(b => `
+                <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%); color: white; padding: 20px 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4); display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.4); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); flex-wrap: wrap; gap: 15px;" onclick="openDetailModalById(${b.id})">
+                    <div style="flex: 1;">
+                        <h3 style="color: rgba(255,255,255,0.95); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                            <span class="live-dot"></span> CURRENT ONGOING SESSION
+                        </h3>
+                        <div style="font-size: 24px; font-weight: 800; margin-bottom: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${b.client_name}</div>
+                        <div style="font-size: 14px; opacity: 0.95; font-weight: 500;">${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)} &nbsp;|&nbsp; ${b.customer_type}</div>
+                    </div>
+                    <div style="text-align: right; background: rgba(0,0,0,0.15); padding: 12px 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.2);">
+                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 6px; font-weight: 600; text-transform: uppercase;">Status</div>
+                        <div style="font-weight: 800; padding: 6px 14px; background: #FFFFFF; color: #059669; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: inline-block;">${b.status}</div>
+                    </div>
                 </div>
-                <div style="text-align: right; background: rgba(0,0,0,0.15); padding: 12px 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.2);">
-                    <div style="font-size: 12px; opacity: 0.9; margin-bottom: 6px; font-weight: 600; text-transform: uppercase;">Status</div>
-                    <div style="font-weight: 800; padding: 6px 14px; background: #FFFFFF; color: #059669; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: inline-block;">${b.status}</div>
-                </div>
-            </div>
-        `).join('') : '';
+            `).join('');
+        } else { ongoingContainer.innerHTML = ''; }
     }
 
     let filtered = allBookings.filter(b => {
@@ -253,259 +277,235 @@ function renderListTable() {
         return viewModeBookings === 'upcoming' ? !recent : recent;
     });
 
-    viewModeBookings === 'recent' ? filtered.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time)) : filtered.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
+    if (viewModeBookings === 'recent') filtered.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
+    else filtered.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No ${viewModeBookings} bookings.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No ${viewModeBookings} bookings found.</td></tr>`;
         return;
     }
 
     tbody.innerHTML = filtered.map(b => {
         const isLive = isBookingOngoing(b.date, b.start_time, b.end_time);
-        const liveBadge = isLive ? `<span style="background: #10B981; color: white; padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; margin-left: 8px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">LIVE</span>` : '';
-        const rowHighlight = isLive ? `background-color: rgba(16, 185, 129, 0.08);` : '';
+        const liveBadge = isLive ? `<span style="background: #10B981; color: white; padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 800; margin-left: 8px; vertical-align: middle; display: inline-block; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">LIVE</span>` : '';
+        const received = parseFloat(b.dp_paid) + parseFloat(b.settlement_paid);
         return `
-        <tr style="${rowHighlight}">
+        <tr style="${isLive ? 'background-color: rgba(16, 185, 129, 0.08);' : ''}">
             <td>${b.date.split('T')[0]}</td>
             <td class="hide-mobile">${b.start_time.substring(0,5)}</td>
             <td><strong>${b.client_name}</strong> ${liveBadge}</td>
             <td class="hide-mobile">${b.customer_type}</td>
-            <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
+            <td class="hide-mobile text-green">${formatIDR(received)}</td>
             <td><span class="status-pill status-${b.status}">${b.status}</span></td>
             <td><button class="primary-btn" style="padding: 6px 12px" onclick="openDetailModalById(${b.id})">Detail</button></td>
         </tr>
     `}).join('');
 }
 
-// [NEW] Advanced Finance Ledger Render
 function renderFinanceTable() {
-    const tbody = document.querySelector('#finance-table tbody');
-    if(!tbody) return;
+    const filterType = document.getElementById('finance-filter').value;
+    const range = getDateRange(filterType, document.getElementById('fin-start').value, document.getElementById('fin-end').value);
     
-    let gross = 0, dp_received = 0, remain = 0;
-    let transactions =[];
+    let filteredRange = allBookings;
+    if (range) {
+        filteredRange = allBookings.filter(b => {
+            const d = new Date(b.date.split('T')[0] + 'T' + b.start_time);
+            return d >= range.start && d <= range.end;
+        });
+    }
 
-    allBookings.forEach(b => {
-        const initDp = parseFloat(b.initial_dp) || parseFloat(b.dp_paid) || 0;
-        const settlement = parseFloat(b.dp_paid) - initDp;
-
-        // Create virtual transaction rows
-        if (b.customer_type === 'Management') {
-             transactions.push({ ...b, trans_type: 'Management', trans_amount: 0, trans_date: b.full_timestamp || b.created_at || b.date });
-        } else {
-             if (initDp > 0) transactions.push({ ...b, trans_type: 'DP', trans_amount: initDp, trans_date: b.dp_timestamp || b.created_at || b.date });
-             if (settlement > 0) transactions.push({ ...b, trans_type: 'Settlement', trans_amount: settlement, trans_date: b.full_timestamp || b.date });
-             if (initDp === 0 && settlement === 0) transactions.push({ ...b, trans_type: 'Unpaid', trans_amount: 0, trans_date: b.created_at || b.date });
-        }
-
-        // Summary Calculations (Gross is based on original booking date filter)
-        if (isDateInFilter(b.date)) {
-            gross += parseFloat(b.total_price);
-            remain += parseFloat(b.remaining_payment);
-        }
+    let gross = 0, dp = 0, remain = 0;
+    filteredRange.forEach(b => { 
+        gross += parseFloat(b.total_price); 
+        dp += parseFloat(b.dp_paid) + parseFloat(b.settlement_paid); 
+        remain += parseFloat(b.remaining_payment); 
     });
 
-    // Summary Calculations (Received is based on actual payment date filter)
-    let filteredTrans = transactions.filter(t => isDateInFilter(t.trans_date));
-    filteredTrans.forEach(t => dp_received += parseFloat(t.trans_amount));
-
     document.getElementById('fin-income').textContent = formatIDR(gross);
-    document.getElementById('fin-dp').textContent = formatIDR(dp_received);
+    document.getElementById('fin-dp').textContent = formatIDR(dp);
     document.getElementById('fin-remain').textContent = formatIDR(remain);
 
-    // Apply Tab (Upcoming / Recent) based on underlying booking date
-    let finalFiltered = filteredTrans.filter(t => {
-        const recent = isBookingRecent(t.date, t.end_time);
+    const tbody = document.querySelector('#finance-table tbody');
+    if(!tbody) return;
+
+    let filteredList = filteredRange.filter(b => {
+        const recent = isBookingRecent(b.date, b.end_time);
         return viewModeFinance === 'upcoming' ? !recent : recent;
     });
 
-    viewModeFinance === 'recent' ? finalFiltered.sort((a, b) => new Date(b.trans_date) - new Date(a.trans_date)) : finalFiltered.sort((a, b) => new Date(a.trans_date) - new Date(b.trans_date));
+    if (viewModeFinance === 'recent') filteredList.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
+    else filteredList.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
 
-    if (finalFiltered.length === 0) {
+    if (filteredList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No transactions found.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = finalFiltered.map(t => {
-        let typeColor = t.trans_type === 'Settlement' ? 'background: #D1FAE5; color: #065F46;' : 'background: #E0E7FF; color: #4338CA;';
-        if (t.trans_type === 'Unpaid') typeColor = 'background: #FEE2E2; color: #991B1B;';
-        const displayDate = formatTimestamp(t.trans_date).split(', ');
-
-        return `
+    tbody.innerHTML = filteredList.map(b => `
         <tr>
-            <td>
-                <div style="font-weight: 600;">${displayDate[0]}</div>
-                <div style="font-size: 11px; opacity: 0.7;">${displayDate[1] || ''}</div>
-            </td>
-            <td>
-                <strong>${t.client_name}</strong><br>
-                <span style="font-size: 12px; opacity: 0.8;">📞 ${t.client_phone}</span>
-            </td>
-            <td class="hide-mobile"><span class="role-pill" style="${typeColor}">${t.trans_type}</span></td>
-            <td class="text-green"><strong>${formatIDR(t.trans_amount)}</strong></td>
-            <td class="hide-mobile text-red">${formatIDR(t.remaining_payment)}</td>
-            <td><span class="status-pill status-${t.status}">${t.status}</span></td>
+            <td>${b.date.split('T')[0]}</td>
+            <td><strong>${b.client_name}</strong><br><span style="font-size: 12px; color: #BBB;">📞 ${b.client_phone}</span></td>
+            <td class="hide-mobile">${formatIDR(b.total_price)}</td>
+            <td class="hide-mobile text-green">${formatIDR(parseFloat(b.dp_paid) + parseFloat(b.settlement_paid))}</td>
+            <td class="hide-mobile text-red"><strong>${formatIDR(b.remaining_payment)}</strong></td>
+            <td><span class="status-pill status-${b.status}">${b.status}</span></td>
         </tr>
-    `}).join('');
+    `).join('');
 }
 
 function renderPettyCash() {
+    const filterType = document.getElementById('pc-filter').value;
+    const range = getDateRange(filterType, document.getElementById('pc-start').value, document.getElementById('pc-end').value);
+    
+    let filteredRange = allPettyCash;
+    if (range) {
+        filteredRange = allPettyCash.filter(t => {
+            const d = new Date(t.date);
+            return d >= range.start && d <= range.end;
+        });
+    }
+
+    let filteredIn = 0, filteredOut = 0;
+    filteredRange.forEach(t => {
+        if(t.type === 'IN') filteredIn += parseFloat(t.amount); else filteredOut += parseFloat(t.amount);
+    });
+
+    // TRUE Overall Balance
     let totalIn = 0, totalOut = 0;
+    allPettyCash.forEach(t => { if(t.type === 'IN') totalIn += parseFloat(t.amount); else totalOut += parseFloat(t.amount); });
+
+    document.getElementById('pc-in').textContent = formatIDR(filteredIn);
+    document.getElementById('pc-out').textContent = formatIDR(filteredOut);
+    document.getElementById('pc-balance').textContent = formatIDR(totalIn - totalOut); // Always true safe balance
+
     const tbody = document.querySelector('#pc-table tbody');
     if(!tbody) return;
-    tbody.innerHTML = allPettyCash.map(t => {
-        const amt = parseFloat(t.amount);
-        if (t.type === 'IN') totalIn += amt; else totalOut += amt;
-        return `<tr>
+
+    if (filteredRange.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No transactions found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filteredRange.map(t => `
+        <tr>
             <td>${t.date.split('T')[0]}</td>
             <td>${t.description}</td>
             <td class="hide-mobile"><span class="role-pill" style="background:${t.type==='IN'?'#D1FAE5':'#FEE2E2'}; color:${t.type==='IN'?'#065F46':'#991B1B'}">${t.type}</span></td>
-            <td class="${t.type==='IN'?'text-green':'text-red'}">${t.type==='IN'?'+':'-'} ${formatIDR(amt)}</td>
+            <td class="${t.type==='IN'?'text-green':'text-red'}">${t.type==='IN'?'+':'-'} ${formatIDR(t.amount)}</td>
             <td><button class="primary-btn" style="padding: 6px 12px" onclick="openPcDetailModalById(${t.id})">Detail</button></td>
-        </tr>`;
-    }).join('');
+        </tr>
+    `).join('');
+}
+
+// --- ADMIN WITHDRAW (PETTY CASH RESET) ---
+async function withdrawAllPettyCash() {
+    let totalIn = 0, totalOut = 0;
+    allPettyCash.forEach(t => { if(t.type === 'IN') totalIn += parseFloat(t.amount); else totalOut += parseFloat(t.amount); });
+    const balance = totalIn - totalOut;
     
-    document.getElementById('pc-in').textContent = formatIDR(totalIn);
-    document.getElementById('pc-out').textContent = formatIDR(totalOut);
-    document.getElementById('pc-balance').textContent = formatIDR(totalIn - totalOut);
-}
+    if (balance <= 0) return showAlert("Current balance is already 0.", true);
+    if (!confirm(`Are you sure you want to withdraw the full balance of ${formatIDR(balance)}? This will record an OUT transaction and reset the safe to 0.`)) return;
 
-// --- PETTY CASH MODALS & ADMIN WITHDRAWAL ---
-function openPcDetailModalById(id) { const t = allPettyCash.find(x => x.id === id); if(t) openPcDetailModal(t); }
-
-function openPcDetailModal(t) {
-    document.getElementById('pc_det_date').textContent = t.date.split('T')[0];
-    document.getElementById('pc_det_desc').textContent = t.description;
-    
-    const typeEl = document.getElementById('pc_det_type');
-    typeEl.textContent = t.type;
-    typeEl.style.background = t.type === 'IN' ? '#D1FAE5' : '#FEE2E2';
-    typeEl.style.color = t.type === 'IN' ? '#065F46' : '#991B1B';
-
-    document.getElementById('pc_det_amount').textContent = formatIDR(t.amount);
-    document.getElementById('pc_det_amount').className = t.type === 'IN' ? 'text-green text-lg' : 'text-red text-lg';
-
-    document.getElementById('btn-edit-pc').onclick = () => openEditPcModal(t);
-    document.getElementById('btn-del-pc').onclick = () => deletePettyCash(t.id);
-    document.getElementById('pc-detail-modal').classList.remove('hidden', 'closing');
-}
-function closePcDetailModal() { closeModalAnim('pc-detail-modal'); }
-
-function openPcModal() {
-    document.getElementById('pc-form').reset();
-    document.getElementById('pc_id').value = "";
-    document.getElementById('pc-modal-title').textContent = "Add Petty Cash";
-    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
-}
-
-function openEditPcModal(t) {
-    closePcDetailModal();
-    document.getElementById('pc_id').value = t.id;
-    document.getElementById('pc-modal-title').textContent = "Edit Petty Cash";
-    document.getElementById('pc_date').value = t.date.split('T')[0];
-    document.getElementById('pc_desc').value = t.description;
-    document.getElementById('pc_type').value = t.type;
-    document.getElementById('pc_amount').value = t.amount;
-    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
-}
-function closePcModal() { closeModalAnim('pc-modal'); }
-
-async function withdrawPettyCash() {
-    if(!confirm("Are you sure you want to withdraw all balance to 0?")) return;
     try {
-        await safeFetch(`${API_URL}/petty_cash/reset`, { method: 'POST', headers: getHeaders() });
-        showAlert("Balance withdrawn to 0!");
-    } catch (err) { showAlert(err.message, true); }
+        await safeFetch(`${API_URL}/petty_cash`, { 
+            method: 'POST', headers: getHeaders(), 
+            body: JSON.stringify({
+                date: new Date().toISOString().split('T')[0],
+                description: "Management Withdrawal",
+                type: "OUT",
+                amount: balance
+            }) 
+        });
+        showAlert("Balance successfully reset to 0!");
+    } catch(err) { showAlert(err.message, true); }
 }
 
-// --- BOOKING MODALS & SETTLEMENT LOGIC ---
+// --- MODALS ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
 function openDetailModal(b) {
-    if(document.getElementById('det_name')) document.getElementById('det_name').textContent = b.client_name;
-    if(document.getElementById('det_type')) document.getElementById('det_type').textContent = b.customer_type;
-    if(document.getElementById('det_phone')) document.getElementById('det_phone').textContent = b.client_phone;
-    if(document.getElementById('det_email')) document.getElementById('det_email').textContent = b.client_email || "N/A"; 
+    document.getElementById('det_name').textContent = b.client_name;
+    document.getElementById('det_type').textContent = b.customer_type;
+    document.getElementById('det_phone').textContent = b.client_phone;
+    document.getElementById('det_email').textContent = b.client_email || "N/A"; 
+    document.getElementById('det_date').textContent = b.date.split('T')[0];
+    document.getElementById('det_time').textContent = `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`;
+    document.getElementById('det_total').textContent = formatIDR(b.total_price);
     
-    if(document.getElementById('det_date')) document.getElementById('det_date').textContent = b.date.split('T')[0];
-    if(document.getElementById('det_time')) document.getElementById('det_time').textContent = `${b.start_time.substring(0,5)} to ${b.end_time.substring(0,5)}`;
-    if(document.getElementById('det_total')) document.getElementById('det_total').textContent = formatIDR(b.total_price);
+    // DP and Settlement Separation
+    document.getElementById('det_dp').innerHTML = `${formatIDR(b.dp_paid)} <br><span style="font-size:11px; opacity:0.8; font-weight:normal;">${formatDateTime(b.dp_time)}</span>`;
     
-    // Formatting timestamps
-    if(document.getElementById('det_dp_ts')) document.getElementById('det_dp_ts').textContent = formatTimestamp(b.dp_timestamp);
-    if(document.getElementById('det_full_ts')) document.getElementById('det_full_ts').textContent = formatTimestamp(b.full_timestamp);
-
-    if(document.getElementById('det_dp')) document.getElementById('det_dp').textContent = formatIDR(b.dp_paid);
-    if(document.getElementById('det_remain')) document.getElementById('det_remain').textContent = formatIDR(b.remaining_payment);
-    
-    if(document.getElementById('det_status')) {
-        document.getElementById('det_status').textContent = b.status;
-        document.getElementById('det_status').className = `status-pill status-${b.status}`;
+    const settleRow = document.getElementById('det_settlement_row');
+    if (parseFloat(b.settlement_paid) > 0) {
+        settleRow.classList.remove('hidden');
+        document.getElementById('det_settlement').innerHTML = `${formatIDR(b.settlement_paid)} <br><span style="font-size:11px; opacity:0.8; font-weight:normal;">${formatDateTime(b.settlement_time)}</span>`;
+    } else {
+        settleRow.classList.add('hidden');
     }
 
-    if(document.getElementById('btn-edit-from-detail')) document.getElementById('btn-edit-from-detail').onclick = () => openEditModal(b);
-    if(document.getElementById('delete-btn')) document.getElementById('delete-btn').onclick = () => deleteFromModal(b.id);
+    document.getElementById('det_remain').textContent = formatIDR(b.remaining_payment);
+    document.getElementById('det_status').textContent = b.status;
+    document.getElementById('det_status').className = `status-pill status-${b.status}`;
+
+    document.getElementById('btn-edit-from-detail').onclick = () => openEditModal(b);
+    document.getElementById('delete-btn').onclick = () => deleteFromModal(b.id);
     document.getElementById('detail-modal').classList.remove('hidden', 'closing');
 }
-function closeDetailModal() { closeModalAnim('detail-modal'); }
 
 function handleCustomerTypeChange() {
-    const val = document.getElementById('customer_type').value;
+    const type = document.getElementById('customer_type').value;
     const priceSec = document.getElementById('price-section');
-    if (val === 'Management') {
-        priceSec.style.display = 'none';
+    const settleSec = document.getElementById('settlement-section');
+    const remainTxt = document.getElementById('remaining-text-wrapper');
+
+    if (type === 'Management') {
+        priceSec.classList.add('hidden');
+        settleSec.classList.add('hidden');
+        remainTxt.classList.add('hidden');
         document.getElementById('total_price').value = 0;
         document.getElementById('dp_paid').value = 0;
-        document.getElementById('total_price').removeAttribute('required');
-        document.getElementById('dp_paid').removeAttribute('required');
-        document.getElementById('settlement-section').classList.add('hidden');
+        document.getElementById('settlement_input').value = 0;
     } else {
-        priceSec.style.display = 'block';
-        document.getElementById('total_price').setAttribute('required', 'true');
-        document.getElementById('dp_paid').setAttribute('required', 'true');
+        priceSec.classList.remove('hidden');
+        remainTxt.classList.remove('hidden');
+        
+        const isEdit = !!document.getElementById('booking_id').value;
+        const dp = parseFloat(document.getElementById('dp_paid').value) || 0;
+        const total = parseFloat(document.getElementById('total_price').value) || 0;
+        
+        // Show settlement ONLY if editing, DP exists, and not fully paid
+        if (isEdit && dp > 0 && dp < total) {
+            settleSec.classList.remove('hidden');
+        }
     }
     calcRemaining();
 }
 
 function calcRemaining() {
-    const p = parseFloat(document.getElementById('total_price').value) || 0;
+    const t = parseFloat(document.getElementById('total_price').value) || 0;
     const dp = parseFloat(document.getElementById('dp_paid').value) || 0;
-    document.getElementById('remaining-text').textContent = formatIDR(p - dp);
-}
-
-// [UPDATED] Tracks DP manual edits directly to initial_dp to separate DP and Settlement
-function handleManualDP() {
-    currentBaseDP = parseFloat(document.getElementById('dp_paid').value) || 0;
-    document.getElementById('initial_dp').value = currentBaseDP; 
-    document.getElementById('settlement_input').value = '';
-    calcRemaining();
-}
-
-function addSettlementToDP() {
-    const added = parseFloat(document.getElementById('settlement_input').value) || 0;
-    document.getElementById('dp_paid').value = currentBaseDP + added;
-    calcRemaining();
+    const sp = parseFloat(document.getElementById('settlement_input').value) || 0;
+    document.getElementById('remaining-text').textContent = formatIDR(t - dp - sp);
 }
 
 function markAsFullyPaid() {
-    const total = parseFloat(document.getElementById('total_price').value) || 0;
-    const remain = total - currentBaseDP;
+    const t = parseFloat(document.getElementById('total_price').value) || 0;
+    const dp = parseFloat(document.getElementById('dp_paid').value) || 0;
+    const remain = t - dp;
     if (remain > 0) {
         document.getElementById('settlement_input').value = remain;
-        addSettlementToDP();
+        calcRemaining();
     }
 }
 
 function openBookingModal() {
     document.getElementById('booking-form').reset();
     document.getElementById('booking_id').value = "";
-    document.getElementById('initial_dp').value = 0;
     document.getElementById('modal-title').textContent = "New Booking";
+    document.getElementById('settlement_input').value = 0;
     
-    currentBaseDP = 0;
-    document.getElementById('price-section').style.display = 'block';
-    document.getElementById('total_price').setAttribute('required', 'true');
-    document.getElementById('dp_paid').setAttribute('required', 'true');
+    document.getElementById('price-section').classList.remove('hidden');
+    document.getElementById('remaining-text-wrapper').classList.remove('hidden');
     document.getElementById('settlement-section').classList.add('hidden');
 
     calcRemaining();
@@ -513,9 +513,8 @@ function openBookingModal() {
 }
 
 function openEditModal(b) {
-    closeDetailModal(); 
+    closeModalAnim('detail-modal');
     document.getElementById('booking_id').value = b.id;
-    document.getElementById('initial_dp').value = b.initial_dp || b.dp_paid || 0;
     document.getElementById('modal-title').textContent = "Edit Booking";
     document.getElementById('customer_type').value = b.customer_type;
     document.getElementById('client_name').value = b.client_name;
@@ -524,36 +523,17 @@ function openEditModal(b) {
     document.getElementById('date').value = b.date.split('T')[0];
     document.getElementById('start_time').value = b.start_time.substring(0,5);
     document.getElementById('end_time').value = b.end_time.substring(0,5);
+    
     document.getElementById('total_price').value = b.total_price;
     document.getElementById('dp_paid').value = b.dp_paid;
+    document.getElementById('settlement_input').value = b.settlement_paid;
     
-    currentBaseDP = parseFloat(b.dp_paid) || 0;
-    document.getElementById('settlement_input').value = '';
-
-    if (b.customer_type === 'Management') {
-        document.getElementById('price-section').style.display = 'none';
-        document.getElementById('total_price').removeAttribute('required');
-        document.getElementById('dp_paid').removeAttribute('required');
-        document.getElementById('settlement-section').classList.add('hidden');
-    } else {
-        document.getElementById('price-section').style.display = 'block';
-        document.getElementById('total_price').setAttribute('required', 'true');
-        document.getElementById('dp_paid').setAttribute('required', 'true');
-        
-        if (b.status !== 'Paid') {
-            document.getElementById('settlement-section').classList.remove('hidden');
-        } else {
-            document.getElementById('settlement-section').classList.add('hidden');
-        }
-    }
-
-    calcRemaining();
+    handleCustomerTypeChange();
     document.getElementById('booking-modal').classList.remove('hidden', 'closing');
 }
 
 function closeBookingModal() { closeModalAnim('booking-modal'); }
 
-// --- API SUBMISSIONS ---
 const bookingForm = document.getElementById('booking-form');
 if(bookingForm) {
     bookingForm.addEventListener('submit', async (e) => {
@@ -568,7 +548,7 @@ if(bookingForm) {
             end_time: document.getElementById('end_time').value,
             total_price: parseFloat(document.getElementById('total_price').value) || 0,
             dp_paid: parseFloat(document.getElementById('dp_paid').value) || 0,
-            initial_dp: parseFloat(document.getElementById('initial_dp').value) || 0
+            settlement_paid: parseFloat(document.getElementById('settlement_input').value) || 0
         };
         if(!payload.customer_type) return showAlert("Please select Customer Type", true);
 
@@ -583,14 +563,40 @@ if(bookingForm) {
     });
 }
 
-async function deleteFromModal(id) {
-    if (!confirm("Delete this booking?")) return;
-    try {
-        await safeFetch(`${API_URL}/bookings/${id}`, { method: 'DELETE', headers: getHeaders() });
-        showAlert("Deleted!");
-        closeDetailModal();
-    } catch (err) { showAlert(err.message, true); }
+// ... Petty Cash details logic remains the same ...
+function openPcDetailModalById(id) { const t = allPettyCash.find(x => x.id === id); if(t) openPcDetailModal(t); }
+function openPcDetailModal(t) {
+    document.getElementById('pc_det_date').textContent = t.date.split('T')[0];
+    document.getElementById('pc_det_desc').textContent = t.description;
+    const typeEl = document.getElementById('pc_det_type');
+    typeEl.textContent = t.type;
+    typeEl.style.background = t.type === 'IN' ? '#D1FAE5' : '#FEE2E2';
+    typeEl.style.color = t.type === 'IN' ? '#065F46' : '#991B1B';
+    document.getElementById('pc_det_amount').textContent = formatIDR(t.amount);
+    document.getElementById('pc_det_amount').className = t.type === 'IN' ? 'text-green text-lg' : 'text-red text-lg';
+    document.getElementById('btn-edit-pc').onclick = () => openEditPcModal(t);
+    document.getElementById('btn-del-pc').onclick = () => deletePettyCash(t.id);
+    document.getElementById('pc-detail-modal').classList.remove('hidden', 'closing');
 }
+function closePcDetailModal() { closeModalAnim('pc-detail-modal'); }
+
+function openPcModal() {
+    document.getElementById('pc-form').reset();
+    document.getElementById('pc_id').value = "";
+    document.getElementById('pc-modal-title').textContent = "Add Petty Cash";
+    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
+}
+function openEditPcModal(t) {
+    closePcDetailModal();
+    document.getElementById('pc_id').value = t.id;
+    document.getElementById('pc-modal-title').textContent = "Edit Petty Cash";
+    document.getElementById('pc_date').value = t.date.split('T')[0];
+    document.getElementById('pc_desc').value = t.description;
+    document.getElementById('pc_type').value = t.type;
+    document.getElementById('pc_amount').value = t.amount;
+    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
+}
+function closePcModal() { closeModalAnim('pc-modal'); }
 
 const pcForm = document.getElementById('pc-form');
 if(pcForm) {
@@ -604,50 +610,35 @@ if(pcForm) {
             amount: parseFloat(document.getElementById('pc_amount').value)
         };
         try {
-            await safeFetch(pcId ? `${API_URL}/petty_cash/${pcId}` : `${API_URL}/petty_cash`, { 
-                method: pcId ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(payload) 
-            });
+            await safeFetch(pcId ? `${API_URL}/petty_cash/${pcId}` : `${API_URL}/petty_cash`, { method: pcId ? 'PUT' : 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
             showAlert(pcId ? "Transaction updated!" : "Transaction added!");
             closePcModal();
         } catch (err) { showAlert(err.message, true); }
     });
 }
-
 async function deletePettyCash(id) {
     if(!confirm("Delete transaction?")) return;
-    try {
-        await safeFetch(`${API_URL}/petty_cash/${id}`, { method: 'DELETE', headers: getHeaders() });
-        showAlert("Transaction deleted");
-        closePcDetailModal();
-    } catch(err) { showAlert(err.message, true); }
+    try { await safeFetch(`${API_URL}/petty_cash/${id}`, { method: 'DELETE', headers: getHeaders() }); showAlert("Transaction deleted"); closePcDetailModal(); } catch(err) { showAlert(err.message, true); }
 }
-
+async function deleteFromModal(id) {
+    if (!confirm("Delete this booking?")) return;
+    try { await safeFetch(`${API_URL}/bookings/${id}`, { method: 'DELETE', headers: getHeaders() }); showAlert("Deleted!"); closeModalAnim('detail-modal'); } catch (err) { showAlert(err.message, true); }
+}
 async function renderAccountsTable() {
     try {
         const users = await safeFetch(`${API_URL}/users`, { headers: getHeaders() });
         const tbody = document.querySelector('#accounts-table tbody');
         if(!tbody) return;
-        tbody.innerHTML = users.map(u => `
-            <tr><td><strong>${u.email}</strong></td><td><span class="role-pill">${u.role}</span></td>
-            <td class="hide-mobile">${new Date(u.created_at).toLocaleDateString()}</td>
-            <td><button class="del-btn" style="padding:6px 12px" onclick="deleteAccount(${u.id})">Del</button></td></tr>
-        `).join('');
+        tbody.innerHTML = users.map(u => `<tr><td><strong>${u.email}</strong></td><td><span class="role-pill">${u.role}</span></td><td class="hide-mobile">${new Date(u.created_at).toLocaleDateString()}</td><td><button class="del-btn" style="padding:6px 12px" onclick="deleteAccount(${u.id})">Del</button></td></tr>`).join('');
     } catch (err) { console.error(err); }
 }
-
 const accForm = document.getElementById('account-form');
 if(accForm) {
     accForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        try {
-            await safeFetch(`${API_URL}/users`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({
-                role: document.getElementById('acc_role').value, email: document.getElementById('acc_email').value.trim(), password: document.getElementById('acc_password').value
-            }) });
-            showAlert("Account created!"); document.getElementById('account-form').reset(); renderAccountsTable();
-        } catch (err) { showAlert(err.message, true); }
+        try { await safeFetch(`${API_URL}/users`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ role: document.getElementById('acc_role').value, email: document.getElementById('acc_email').value.trim(), password: document.getElementById('acc_password').value }) }); showAlert("Account created!"); document.getElementById('account-form').reset(); renderAccountsTable(); } catch (err) { showAlert(err.message, true); }
     });
 }
-
 async function deleteAccount(id) {
     if(!confirm("Delete account?")) return;
     try { await safeFetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: getHeaders() }); renderAccountsTable(); } catch (err) { showAlert(err.message, true); }
