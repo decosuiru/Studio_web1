@@ -44,7 +44,7 @@
                     <h2 id="section-title">Calendar</h2>
                 </div>
                 <div class="header-right">
-                    <span id="sync-status" class="sync-indicator">🟢 Live</span>
+                    <span id="sync-status" class="sync-indicator">🟢 Live Sync On</span>
                     <button class="primary-btn shadow-btn" onclick="openBookingModal()">+ New</button>
                 </div>
             </header>
@@ -74,19 +74,22 @@
             </section>
 
             <section id="finance-section" class="section hidden">
-                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-                    <select id="finance-filter-type" onchange="applyFinanceFilter()" style="width: auto; margin-bottom: 0;">
+                <!-- FILTER BAR -->
+                <div class="filter-bar">
+                    <select id="finance-filter" onchange="handleFinanceFilter()">
                         <option value="month" selected>This Month</option>
-                        <option value="week">This Week</option>
                         <option value="day">Today</option>
+                        <option value="week">This Week</option>
                         <option value="all">All Time</option>
-                        <option value="custom">Custom Range...</option>
+                        <option value="custom">Custom Date</option>
                     </select>
-                    <input type="date" id="finance-start" style="display: none; width: auto; margin-bottom: 0;" onchange="applyFinanceFilter()">
-                    <input type="date" id="finance-end" style="display: none; width: auto; margin-bottom: 0;" onchange="applyFinanceFilter()">
+                    <div id="finance-custom" class="hidden time-group" style="margin-bottom:0;">
+                        <input type="date" id="fin-start"> <span style="color:white">to</span> <input type="date" id="fin-end">
+                        <button class="primary-btn" onclick="renderFinanceTable()">Apply</button>
+                    </div>
                 </div>
-                
-                <div class="cards-grid">
+
+                <div class="cards-grid mt-15">
                     <div class="card"><h3>Total Gross</h3><p class="amount" id="fin-income">Rp 0</p></div>
                     <div class="card bg-green"><h3>Total Received</h3><p class="amount text-green" id="fin-dp">Rp 0</p></div>
                     <div class="card bg-red"><h3>Unpaid Balance</h3><p class="amount text-red" id="fin-remain">Rp 0</p></div>
@@ -98,22 +101,37 @@
                 </div>
                 <div class="table-container mt-15">
                     <table id="finance-table">
-                        <thead><tr><th>Date</th><th>Client Info</th><th class="hide-mobile">Type</th><th>Amount</th><th class="hide-mobile">Remaining</th><th>Status</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Client Info</th><th class="hide-mobile">Total</th><th class="hide-mobile">Received</th><th class="hide-mobile">Remaining</th><th>Status</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
             </section>
 
             <section id="pettycash-section" class="section hidden">
-                <div class="cards-grid mb-20">
-                    <div class="card bg-green"><h3>Cash In</h3><p class="amount text-green" id="pc-in">Rp 0</p></div>
-                    <div class="card bg-red"><h3>Cash Out</h3><p class="amount text-red" id="pc-out">Rp 0</p></div>
-                    <div class="card"><h3>Balance</h3><p class="amount" id="pc-balance">Rp 0</p></div>
+                <!-- FILTER BAR -->
+                <div class="filter-bar">
+                    <select id="pc-filter" onchange="handlePcFilter()">
+                        <option value="month" selected>This Month</option>
+                        <option value="day">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="all">All Time</option>
+                        <option value="custom">Custom Date</option>
+                    </select>
+                    <div id="pc-custom" class="hidden time-group" style="margin-bottom:0;">
+                        <input type="date" id="pc-start"> <span style="color:white">to</span> <input type="date" id="pc-end">
+                        <button class="primary-btn" onclick="renderPettyCash()">Apply</button>
+                    </div>
+                </div>
+
+                <div class="cards-grid mt-15 mb-20">
+                    <div class="card bg-green"><h3>Filtered Cash In</h3><p class="amount text-green" id="pc-in">Rp 0</p></div>
+                    <div class="card bg-red"><h3>Filtered Cash Out</h3><p class="amount text-red" id="pc-out">Rp 0</p></div>
+                    <div class="card" style="border: 2px solid var(--primary);"><h3>Overall Safe Balance</h3><p class="amount" id="pc-balance">Rp 0</p></div>
                 </div>
                 
-                <div style="display: flex; gap: 10px;" class="mb-15">
+                <div style="display:flex; gap:15px; margin-bottom: 15px;">
                     <button class="primary-btn shadow-btn w-full" onclick="openPcModal()">+ Add Transaction</button>
-                    <button class="cancel-btn admin-only w-full" style="background: rgba(255,255,255,0.8); color: var(--danger); font-weight: bold; border: 1px solid var(--danger);" onclick="withdrawPettyCash()">Withdraw to 0</button>
+                    <button class="del-btn shadow-btn admin-only" onclick="withdrawAllPettyCash()" style="width: auto; white-space: nowrap;">Withdraw All (Reset)</button>
                 </div>
 
                 <div class="table-container">
@@ -166,6 +184,7 @@
             </form>
         </div>
     </div>
+
     <div id="pc-detail-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Transaction Details</h3>
@@ -188,18 +207,21 @@
         <div class="modal-content">
             <h3>Booking Details</h3>
             <div class="detail-grid mt-15">
-                <div><span class="detail-label">Client Name:</span> <strong id="det_name"></strong></div>
                 <div><span class="detail-label">Status:</span> <span id="det_status" class="status-pill"></span></div>
+                <div><span class="detail-label">Client Name:</span> <strong id="det_name"></strong></div>
                 <div><span class="detail-label">Customer Type:</span> <strong id="det_type"></strong></div>
                 <div><span class="detail-label">Phone:</span> <span id="det_phone"></span></div>
-                <div><span class="detail-label">Email:</span> <span id="det_email"></span></div>
                 <div><span class="detail-label">Date:</span> <strong id="det_date"></strong></div>
-                <div><span class="detail-label">Time:</span> <strong id="det_time"></strong></div>
-                <div><span class="detail-label">Total Booking Price:</span> <strong id="det_total"></strong></div>
-                <div><span class="detail-label">DP Recorded:</span> <span style="font-size: 13px; color:#6B7280" id="det_dp_ts"></span></div>
-                <div><span class="detail-label text-green">Initial DP:</span> <strong class="text-green text-lg" id="det_dp"></strong></div>
-                <div><span class="detail-label">Settlement Recorded:</span> <span style="font-size: 13px; color:#6B7280" id="det_full_ts"></span></div>
-                <div><span class="detail-label text-green">Settlement Paid:</span> <strong class="text-green text-lg" id="det_settlement"></strong></div>
+                <div style="background: rgba(249, 250, 251, 0.8); padding: 10px; border-radius: 8px;">
+                    <span class="detail-label" style="font-weight: bold; color: var(--primary-dark);">Time:</span> 
+                    <strong id="det_time" style="font-size: 18px; color: var(--primary);"></strong>
+                </div>
+                <div><span class="detail-label">Total Price:</span> <strong id="det_total"></strong></div>
+                
+                <!-- Separated Payment Timestamps -->
+                <div><span class="detail-label text-green">DP / First Payment:</span> <div style="text-align: right;"><strong class="text-green text-lg" id="det_dp"></strong></div></div>
+                <div id="det_settlement_row" class="hidden"><span class="detail-label text-green">Settlement / Final:</span> <div style="text-align: right;"><strong class="text-green text-lg" id="det_settlement"></strong></div></div>
+                
                 <div><span class="detail-label text-red">Remaining:</span> <strong class="text-red" id="det_remain"></strong></div>
             </div>
             <div class="modal-actions mt-20">
@@ -210,23 +232,18 @@
         </div>
     </div>
 
-   <!-- BOOKING FORM MODAL -->
+    <!-- BOOKING FORM MODAL -->
     <div id="booking-modal" class="modal hidden">
         <div class="modal-content">
             <h3 id="modal-title">New Booking</h3>
             <form id="booking-form" class="mt-15">
                 <input type="hidden" id="booking_id">
-                <input type="hidden" id="initial_dp"> <!-- [NEW] Tracks initial payment split -->
-                
-                <div class="form-group">
-                    <select id="customer_type" required onchange="handleCustomerTypeChange()">
-                        <option value="" disabled selected>Select Customer Type *</option>
-                        <option value="Regular">Regular</option>
-                        <option value="Vendor">Vendor</option>
-                        <option value="Management">Management</option>
-                    </select>
-                </div>
-                <!-- ... the rest of the form stays the same ... -->
+                <select id="customer_type" required onchange="handleCustomerTypeChange()">
+                    <option value="" disabled selected>Select Customer Type *</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Vendor">Vendor</option>
+                    <option value="Management">Management</option>
+                </select>
                 <input type="text" id="client_name" placeholder="Client Name *" required>
                 <input type="text" id="client_phone" placeholder="Phone Number *" required>
                 <input type="email" id="client_email" placeholder="Email (Optional)">
@@ -235,17 +252,14 @@
                     <input type="time" id="start_time" required> <span class="to-txt">to</span> <input type="time" id="end_time" required>
                 </div>
                 
-                <div id="price-section">
-                    <div class="time-group">
-                        <div>
-                            <span class="detail-label">Total Price *</span>
-                            <input type="number" id="total_price" placeholder="Rp" oninput="calcRemaining()" required>
-                        </div>
-                        <div>
-                            <!-- [UPDATED] Clear label for DP -->
-                            <span class="detail-label text-green">DP / Initial Payment *</span>
-                            <input type="number" id="dp_paid" placeholder="Rp" oninput="calcRemaining()" required>
-                        </div>
+                <div id="price-section" class="time-group">
+                    <div>
+                        <span class="detail-label">Total Price *</span>
+                        <input type="number" id="total_price" placeholder="Rp" oninput="calcRemaining()" required>
+                    </div>
+                    <div>
+                        <span class="detail-label text-green">DP Paid *</span>
+                        <input type="number" id="dp_paid" placeholder="Rp" oninput="calcRemaining()" required>
                     </div>
                 </div>
 
@@ -254,11 +268,10 @@
                         <span style="font-size: 13px; font-weight: 600; color: #065F46;">Settlement Payment</span>
                         <button type="button" onclick="markAsFullyPaid()" style="background: #10B981; color: white; padding: 6px 12px; border-radius: 8px; border: none; font-weight: bold; font-size: 12px; cursor: pointer;">Settle Full</button>
                     </div>
-                    <!-- [UPDATED] Uses settlement logic purely without merging -->
-                    <input type="number" id="settlement_input" placeholder="Amount Paid (Rp)" oninput="calcRemaining()" style="margin-bottom: 0;">
+                    <input type="number" id="settlement_input" placeholder="Amount (Rp)" oninput="calcRemaining()" style="margin-bottom: 0;">
                 </div>
 
-                <p class="calc-text text-red" id="remaining-wrapper">Remaining: <strong id="remaining-text">Rp 0</strong></p>
+                <p class="calc-text text-red" id="remaining-text-wrapper">Remaining: <strong id="remaining-text">Rp 0</strong></p>
                 <div class="modal-actions">
                     <button type="button" class="cancel-btn" onclick="closeBookingModal()">Cancel</button>
                     <button type="submit" class="primary-btn">Save</button>
