@@ -44,7 +44,7 @@
                     <h2 id="section-title">Calendar</h2>
                 </div>
                 <div class="header-right">
-                    <span id="sync-status" class="sync-indicator">🟢 Live</span>
+                    <span id="sync-status" class="sync-indicator">🟢 Live Sync On</span>
                     <button class="primary-btn shadow-btn" onclick="openBookingModal()">+ New</button>
                 </div>
             </header>
@@ -74,7 +74,6 @@
             </section>
 
             <section id="finance-section" class="section hidden">
-                <!-- FILTER BAR -->
                 <div class="filter-bar">
                     <select id="finance-filter" onchange="handleFinanceFilter()">
                         <option value="month" selected>This Month</option>
@@ -108,7 +107,6 @@
             </section>
 
             <section id="pettycash-section" class="section hidden">
-                <!-- FILTER BAR -->
                 <div class="filter-bar">
                     <select id="pc-filter" onchange="handlePcFilter()">
                         <option value="month" selected>This Month</option>
@@ -125,18 +123,19 @@
 
                 <div class="cards-grid mt-15 mb-20">
                     <div class="card bg-green"><h3>Filtered Cash In</h3><p class="amount text-green" id="pc-in">Rp 0</p></div>
-                    <div class="card bg-red"><h3>Filtered Cash Out</h3><p class="amount text-red" id="pc-out">Rp 0</p></div>
+                    <div class="card bg-red"><h3>Filtered Expenses</h3><p class="amount text-red" id="pc-out">Rp 0</p></div>
                     <div class="card" style="border: 2px solid var(--primary);"><h3>Overall Safe Balance</h3><p class="amount" id="pc-balance">Rp 0</p></div>
                 </div>
                 
                 <div style="display:flex; gap:15px; margin-bottom: 15px;">
-                    <button class="primary-btn shadow-btn w-full" onclick="openPcModal()">+ Add Transaction</button>
+                    <button class="primary-btn shadow-btn w-full" onclick="openPcModal()">+ Add Expense</button>
                     <button class="del-btn shadow-btn admin-only" onclick="withdrawAllPettyCash()" style="width: auto; white-space: nowrap;">Withdraw All (Reset)</button>
                 </div>
 
                 <div class="table-container">
                     <table id="pc-table">
-                        <thead><tr><th>Date</th><th>Description</th><th class="hide-mobile">Type</th><th>Amount</th><th>Action</th></tr></thead>
+                        <!-- Removed Type Column -->
+                        <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Action</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -164,18 +163,15 @@
         </main>
     </div>
 
-    <!-- PETTY CASH MODALS -->
+    <!-- PETTY CASH FORM MODAL -->
     <div id="pc-modal" class="modal hidden">
         <div class="modal-content">
-            <h3 id="pc-modal-title">Add Petty Cash</h3>
+            <h3 id="pc-modal-title">Add Expense</h3>
             <form id="pc-form" class="mt-15">
                 <input type="hidden" id="pc_id">
                 <input type="date" id="pc_date" required>
-                <input type="text" id="pc_desc" placeholder="Description" required>
-                <select id="pc_type" required>
-                    <option value="IN">Cash IN (+)</option>
-                    <option value="OUT">Cash OUT (-)</option>
-                </select>
+                <input type="text" id="pc_desc" placeholder="Expense Description" required>
+                <!-- Removed Type Select -->
                 <input type="number" id="pc_amount" placeholder="Amount (Rp)" required>
                 <div class="modal-actions mt-20">
                     <button type="button" class="cancel-btn" onclick="closePcModal()">Cancel</button>
@@ -185,13 +181,13 @@
         </div>
     </div>
 
+    <!-- PETTY CASH DETAIL MODAL -->
     <div id="pc-detail-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Transaction Details</h3>
             <div class="detail-grid mt-15">
                 <div><span class="detail-label">Date:</span> <strong id="pc_det_date"></strong></div>
                 <div><span class="detail-label">Description:</span> <strong id="pc_det_desc"></strong></div>
-                <div><span class="detail-label">Type:</span> <span id="pc_det_type" class="role-pill"></span></div>
                 <div><span class="detail-label">Amount:</span> <strong id="pc_det_amount"></strong></div>
             </div>
             <div class="modal-actions mt-20">
@@ -211,17 +207,16 @@
                 <div><span class="detail-label">Client Name:</span> <strong id="det_name"></strong></div>
                 <div><span class="detail-label">Customer Type:</span> <strong id="det_type"></strong></div>
                 <div><span class="detail-label">Phone:</span> <span id="det_phone"></span></div>
+                <!-- [FIX] Email added back so the JavaScript doesn't crash -->
+                <div><span class="detail-label">Email:</span> <span id="det_email"></span></div>
                 <div><span class="detail-label">Date:</span> <strong id="det_date"></strong></div>
                 <div style="background: rgba(249, 250, 251, 0.8); padding: 10px; border-radius: 8px;">
                     <span class="detail-label" style="font-weight: bold; color: var(--primary-dark);">Time:</span> 
                     <strong id="det_time" style="font-size: 18px; color: var(--primary);"></strong>
                 </div>
                 <div><span class="detail-label">Total Price:</span> <strong id="det_total"></strong></div>
-                
-                <!-- Separated Payment Timestamps -->
                 <div><span class="detail-label text-green">DP / First Payment:</span> <div style="text-align: right;"><strong class="text-green text-lg" id="det_dp"></strong></div></div>
                 <div id="det_settlement_row" class="hidden"><span class="detail-label text-green">Settlement / Final:</span> <div style="text-align: right;"><strong class="text-green text-lg" id="det_settlement"></strong></div></div>
-                
                 <div><span class="detail-label text-red">Remaining:</span> <strong class="text-red" id="det_remain"></strong></div>
             </div>
             <div class="modal-actions mt-20">
@@ -238,12 +233,14 @@
             <h3 id="modal-title">New Booking</h3>
             <form id="booking-form" class="mt-15">
                 <input type="hidden" id="booking_id">
-                <select id="customer_type" required onchange="handleCustomerTypeChange()">
-                    <option value="" disabled selected>Select Customer Type *</option>
-                    <option value="Regular">Regular</option>
-                    <option value="Vendor">Vendor</option>
-                    <option value="Management">Management</option>
-                </select>
+                <div class="form-group">
+                    <select id="customer_type" required onchange="handleCustomerTypeChange()">
+                        <option value="" disabled selected>Select Customer Type *</option>
+                        <option value="Regular">Regular</option>
+                        <option value="Vendor">Vendor</option>
+                        <option value="Management">Management</option>
+                    </select>
+                </div>
                 <input type="text" id="client_name" placeholder="Client Name *" required>
                 <input type="text" id="client_phone" placeholder="Phone Number *" required>
                 <input type="email" id="client_email" placeholder="Email (Optional)">
@@ -259,7 +256,7 @@
                     </div>
                     <div>
                         <span class="detail-label text-green">DP Paid *</span>
-                        <input type="number" id="dp_paid" placeholder="Rp" oninput="calcRemaining()" required>
+                        <input type="number" id="dp_paid" placeholder="Rp" oninput="handleManualDP()" required>
                     </div>
                 </div>
 
