@@ -338,30 +338,21 @@ function renderFinanceTable() {
         return viewModeFinance === 'upcoming' ? !recent : recent;
     });
 
-    if (viewModeFinance === 'recent') {
-        filteredList.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
-    } else {
-        filteredList.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
-    }
+    if (viewModeFinance === 'recent') filteredList.sort((a, b) => new Date(b.date.split('T')[0]+'T'+b.end_time) - new Date(a.date.split('T')[0]+'T'+a.end_time));
+    else filteredList.sort((a, b) => new Date(a.date.split('T')[0]+'T'+a.start_time) - new Date(b.date.split('T')[0]+'T'+b.start_time));
 
     if (filteredList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No transactions found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: rgba(255,255,255,0.6); padding: 20px;">No transactions found.</td></tr>`;
         return;
     }
 
     tbody.innerHTML = filteredList.map(b => `
         <tr>
             <td>${b.date.split('T')[0]}</td>
-            <td>
-                <strong>${b.client_name}</strong><br>
-                <span style="font-size: 12px; color: #BBB;">📞 ${b.client_phone}</span>
-            </td>
+            <td><strong>${b.client_name}</strong><br><span style="font-size: 12px; color: #BBB;">📞 ${b.client_phone}</span></td>
             <td class="hide-mobile">${formatIDR(b.total_price)}</td>
-            <td class="hide-mobile">
-                <div style="font-size: 12px; color: #10B981;">DP: ${formatIDR(b.dp_paid)}</div>
-                ${parseFloat(b.settlement_paid) > 0 ? `<div style="font-size: 12px; color: #059669; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 2px; margin-top: 2px;">Full: ${formatIDR(b.settlement_paid)}</div>` : ''}
-                <strong class="text-green" style="display: block; margin-top: 4px;">Tot: ${formatIDR(parseFloat(b.dp_paid) + parseFloat(b.settlement_paid))}</strong>
-            </td>
+            <td class="hide-mobile text-green">${formatIDR(b.dp_paid)}</td>
+            <td class="hide-mobile text-green">${formatIDR(b.settlement_paid)}</td>
             <td class="hide-mobile text-red"><strong>${formatIDR(b.remaining_payment)}</strong></td>
             <td><span class="status-pill status-${b.status}">${b.status}</span></td>
         </tr>
@@ -520,6 +511,11 @@ function calcRemaining() {
     const dp = parseFloat(document.getElementById('dp_paid').value) || 0;
     const sp = parseFloat(document.getElementById('settlement_input').value) || 0;
     safeSetText('remaining-text', formatIDR(t - dp - sp));
+}
+
+function handleManualDP() {
+    // DP and Settlement are now completely separate!
+    calcRemaining();
 }
 
 function markAsFullyPaid() {
