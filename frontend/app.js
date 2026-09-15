@@ -509,7 +509,7 @@ function openEditPcModal(t) {
 function closePcModal() { closeModalAnim('pc-modal'); }
 
 
-// --- [NEW] HELPER FORMAT INVOICE LAMA (Reset Harian Otomatis) ---
+// --- HELPER FORMAT INVOICE (RESET HARIAN OTOMATIS) ---
 function generateInvoiceNo(b) {
     if (b.invoice_no && !b.invoice_no.includes('OLD')) return b.invoice_no;
     
@@ -532,11 +532,10 @@ function generateInvoiceNo(b) {
     return `JNS-INV/${dd}${mm}${yy}${seq}`;
 }
 
-// --- [UPDATED] PRINT INVOICE LOGIC (LOADING SCREEN METHOD - 100% FOOLPROOF) ---
+// --- [UPDATED] PRINT INVOICE LOGIC (100% FOOLPROOF ISOLATION) ---
 function printInvoice() {
     if (!currentViewedBooking) return;
     const b = currentViewedBooking;
-    
     const invNo = generateInvoiceNo(b);
 
     // 1. Masukkan data ke template HTML
@@ -545,10 +544,8 @@ function printInvoice() {
     document.getElementById('print_phone').textContent = formatPhone(b.client_phone);
     document.getElementById('print_type').textContent = b.customer_type;
     document.getElementById('print_status').textContent = b.status;
-    
     document.getElementById('print_date').textContent = b.date.split('T')[0];
     document.getElementById('print_time').textContent = `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`;
-    
     document.getElementById('print_total').textContent = formatIDR(b.total_price);
     document.getElementById('print_dp').textContent = formatIDR(b.dp_paid);
     
@@ -561,45 +558,42 @@ function printInvoice() {
     }
     document.getElementById('print_remain').textContent = formatIDR(b.remaining_payment);
 
-    // 2. Buat Tampilan Loading Screen (Mencegah user melihat proses clone)
+    // 2. Munculkan Apple Loading Screen
     const loader = document.createElement('div');
-    loader.style.position = 'fixed';
-    loader.style.top = '0';
-    loader.style.left = '0';
-    loader.style.width = '100vw';
-    loader.style.height = '100vh';
-    loader.style.backgroundColor = 'rgba(17, 24, 39, 0.9)'; // Warna gelap
-    loader.style.color = 'white';
-    loader.style.display = 'flex';
-    loader.style.justifyContent = 'center';
-    loader.style.alignItems = 'center';
-    loader.style.zIndex = '999999'; // Paling depan
-    loader.innerHTML = '<h2 style="font-family: sans-serif; font-size: 20px;">Generating PDF...</h2>';
+    loader.className = 'apple-loader-overlay';
+    loader.innerHTML = `
+        <div class="apple-spinner"></div>
+        <h3 style="color: white; font-weight: 500; font-size: 16px; letter-spacing: 0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Preparing PDF...</h3>
+    `;
     document.body.appendChild(loader);
 
-    // 3. Clone Template ke layar utama tepat di bawah Loading Screen
-    const originalTemplate = document.getElementById('invoice-template');
-    const printWrapper = document.createElement('div');
-    
-    printWrapper.style.position = 'absolute';
-    printWrapper.style.top = '0px';
-    printWrapper.style.left = '0px';
-    printWrapper.style.width = '800px'; 
-    printWrapper.style.background = 'white';
-    // Letakkan persis 1 level di bawah loading screen
-    printWrapper.style.zIndex = '999998'; 
+    // Trigger animasi fade in
+    requestAnimationFrame(() => loader.classList.add('show'));
 
-    const clonedTemplate = originalTemplate.cloneNode(true);
-    clonedTemplate.style.display = 'block'; 
-    
-    printWrapper.appendChild(clonedTemplate);
-    document.body.appendChild(printWrapper);
-
-    // [PENTING] Scroll ke atas agar html2canvas tidak memotong PDF karena layar digeser
-    window.scrollTo(0, 0);
-
-    // 4. Beri jeda 500ms agar font & logo ter-render sepenuhnya sebelum difoto
+    // 3. Eksekusi PDF setelah loading screen menutupi layar (300ms)
     setTimeout(() => {
+        // Ambil elemen penting
+        const appView = document.getElementById('app-view');
+        const detailModal = document.getElementById('detail-modal');
+        const template = document.getElementById('invoice-template');
+        const container = document.getElementById('invoice-print-container');
+        
+        // Simpan background asli
+        const originalBg = document.body.style.backgroundImage;
+
+        // ISOLASI: Sembunyikan seluruh app dan jadikan background body putih murni
+        appView.style.display = 'none';
+        detailModal.style.display = 'none';
+        document.body.style.backgroundImage = 'none';
+        document.body.style.backgroundColor = 'white';
+
+        // Pindahkan template ke body agar bebas dari hambatan CSS dan Flexbox
+        document.body.appendChild(template);
+        template.style.display = 'block';
+
+        // Gulir ke ujung atas agar html2canvas tidak memotong halaman
+        window.scrollTo(0, 0);
+
         const opt = {
             margin:       0.4,
             filename:     `${invNo}.pdf`,
@@ -607,24 +601,36 @@ function printInvoice() {
             html2canvas:  { 
                 scale: 2, 
                 useCORS: true, 
-                width: 800, 
-                windowWidth: 800, 
-                scrollX: 0, 
-                scrollY: 0 
+                windowWidth: 800, // Simulasi lebar layar desktop untuk html2canvas
+                width: 700      // Lebar asli template
             }, 
             jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
         };
 
-        html2pdf().set(opt).from(printWrapper).save().then(() => {
-            // 5. Bersihkan layar setelah PDF terunduh
-            document.body.removeChild(printWrapper);
-            document.body.removeChild(loader);
+        // Buat PDF
+        html2pdf().set(opt).from(template).save().then(() => {
+            // KEMBALIKAN SEMUA KE NORMAL
+            container.appendChild(template);
+            template.style.display = 'none';
+            appView.style.display = 'flex';
+            detailModal.style.display = 'flex';
+            document.body.style.backgroundImage = originalBg;
+
+            // Hilangkan Loading
+            loader.classList.remove('show');
+            setTimeout(() => document.body.removeChild(loader), 300);
         }).catch((err) => {
             console.error("PDF Error: ", err);
-            document.body.removeChild(printWrapper);
-            document.body.removeChild(loader);
+            // Kembalikan ke normal jika terjadi error
+            container.appendChild(template);
+            template.style.display = 'none';
+            appView.style.display = 'flex';
+            detailModal.style.display = 'flex';
+            document.body.style.backgroundImage = originalBg;
+            loader.classList.remove('show');
+            setTimeout(() => document.body.removeChild(loader), 300);
         });
-    }, 500);
+    }, 400); // Waktu yang cukup untuk animasi loading selesai
 }
 
 // --- [UPDATED] BOOKING MODALS ---
