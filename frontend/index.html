@@ -292,67 +292,67 @@
         </div>
     </div>
 
-<!-- [UPDATED] HIDDEN INVOICE TEMPLATE UNTUK PDF (FIXED LAYOUT) -->
-    <!-- Posisi fixed jauh di kiri agar tidak terlihat di layar, tapi terbaca sempurna oleh PDF -->
-    <div id="invoice-print-container" style="position: fixed; left: -9999px; top: 0; width: 800px; z-index: -9999;">
-        <div id="invoice-template" style="padding: 40px; background: white; color: #1F2937; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; width: 800px; box-sizing: border-box;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #F3F4F6; padding-bottom: 20px; margin-bottom: 20px;">
-                <img src="https://raw.githubusercontent.com/decosuiru/Studio_web1/main/logo/jane%27sblack.png" style="max-height: 50px;">
+<!-- [UPDATED] HIDDEN INVOICE TEMPLATE UNTUK PDF (KEMBALI KE AWAL & DIPERKECIL) -->
+    <div id="invoice-print-container" style="position: fixed; left: -9999px; top: 0; display: none;">
+        <!-- Lebar diubah menjadi 700px dan ukuran font diperkecil agar muat sempurna di A4 -->
+        <div id="invoice-template" style="padding: 30px; background: white; color: #1F2937; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; width: 700px; box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #F3F4F6; padding-bottom: 15px; margin-bottom: 15px;">
+                <img src="https://raw.githubusercontent.com/decosuiru/Studio_web1/main/logo/jane%27sblack.png" style="max-height: 40px;">
                 <div style="text-align: right;">
-                    <h1 style="color: #4F46E5; margin: 0; font-size: 28px;">INVOICE</h1>
-                    <p style="margin: 5px 0 0 0; font-weight: bold; color: #6B7280; font-size: 14px;" id="print_inv_no"></p>
+                    <h1 style="color: #4F46E5; margin: 0; font-size: 24px;">INVOICE</h1>
+                    <p style="margin: 5px 0 0 0; font-weight: bold; color: #6B7280; font-size: 12px;" id="print_inv_no"></p>
                 </div>
             </div>
             
-            <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 25px;">
                 <div>
-                    <p style="color: #6B7280; font-size: 12px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;">Billed To:</p>
-                    <h3 style="margin: 0 0 5px 0; font-size: 18px;" id="print_name"></h3>
-                    <p style="margin: 0; color: #4B5563; font-size: 14px;" id="print_phone"></p>
-                    <p style="margin: 0; color: #4B5563; font-size: 14px;" id="print_type"></p>
+                    <p style="color: #6B7280; font-size: 11px; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px;">Billed To:</p>
+                    <h3 style="margin: 0 0 3px 0; font-size: 16px;" id="print_name"></h3>
+                    <p style="margin: 0; color: #4B5563; font-size: 13px;" id="print_phone"></p>
+                    <p style="margin: 0; color: #4B5563; font-size: 13px;" id="print_type"></p>
                 </div>
                 <div style="text-align: right;">
-                    <p style="color: #6B7280; font-size: 12px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;">Status:</p>
-                    <h3 style="margin: 0; font-size: 18px; color: #10B981;" id="print_status"></h3>
+                    <p style="color: #6B7280; font-size: 11px; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px;">Status:</p>
+                    <h3 style="margin: 0; font-size: 16px; color: #10B981;" id="print_status"></h3>
                 </div>
             </div>
 
-            <div style="background: #F9FAFB; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
-                <h4 style="margin: 0 0 15px 0; color: #1F2937; border-bottom: 1px solid #E5E7EB; padding-bottom: 10px;">Event Details</h4>
-                <div style="display: flex; justify-content: space-between; font-size: 15px;">
+            <div style="background: #F9FAFB; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+                <h4 style="margin: 0 0 10px 0; color: #1F2937; border-bottom: 1px solid #E5E7EB; padding-bottom: 8px; font-size: 14px;">Event Details</h4>
+                <div style="display: flex; justify-content: space-between; font-size: 14px;">
                     <div><span style="color: #6B7280;">Date:</span> <strong id="print_date"></strong></div>
                     <div><span style="color: #6B7280;">Time:</span> <strong id="print_time"></strong></div>
                 </div>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
                 <thead>
                     <tr style="border-bottom: 2px solid #E5E7EB;">
-                        <th style="text-align: left; padding: 12px 0; color: #6B7280; font-size: 14px;">Description</th>
-                        <th style="text-align: right; padding: 12px 0; color: #6B7280; font-size: 14px;">Amount</th>
+                        <th style="text-align: left; padding: 10px 0; color: #6B7280; font-size: 13px;">Description</th>
+                        <th style="text-align: right; padding: 10px 0; color: #6B7280; font-size: 13px;">Amount</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="padding: 15px 0; border-bottom: 1px solid #F3F4F6;"><strong>Total Booking Price</strong></td>
-                        <td style="text-align: right; padding: 15px 0; border-bottom: 1px solid #F3F4F6;"><strong id="print_total"></strong></td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #F3F4F6; font-size: 14px;"><strong>Total Booking Price</strong></td>
+                        <td style="text-align: right; padding: 12px 0; border-bottom: 1px solid #F3F4F6; font-size: 14px;"><strong id="print_total"></strong></td>
                     </tr>
                     <tr>
-                        <td style="padding: 15px 0; border-bottom: 1px solid #F3F4F6; color: #10B981;">DP / First Payment</td>
-                        <td style="text-align: right; padding: 15px 0; border-bottom: 1px solid #F3F4F6; color: #10B981;" id="print_dp"></td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #F3F4F6; color: #10B981; font-size: 14px;">DP / First Payment</td>
+                        <td style="text-align: right; padding: 12px 0; border-bottom: 1px solid #F3F4F6; color: #10B981; font-size: 14px;" id="print_dp"></td>
                     </tr>
                     <tr id="print_settle_row">
-                        <td style="padding: 15px 0; border-bottom: 1px solid #F3F4F6; color: #10B981;">Settlement / Final Payment</td>
-                        <td style="text-align: right; padding: 15px 0; border-bottom: 1px solid #F3F4F6; color: #10B981;" id="print_settle"></td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid #F3F4F6; color: #10B981; font-size: 14px;">Settlement / Final Payment</td>
+                        <td style="text-align: right; padding: 12px 0; border-bottom: 1px solid #F3F4F6; color: #10B981; font-size: 14px;" id="print_settle"></td>
                     </tr>
                     <tr>
-                        <td style="padding: 15px 0; color: #EF4444;"><strong>Remaining Balance</strong></td>
-                        <td style="text-align: right; padding: 15px 0; color: #EF4444;"><strong id="print_remain"></strong></td>
+                        <td style="padding: 12px 0; color: #EF4444; font-size: 14px;"><strong>Remaining Balance</strong></td>
+                        <td style="text-align: right; padding: 12px 0; color: #EF4444; font-size: 14px;"><strong id="print_remain"></strong></td>
                     </tr>
                 </tbody>
             </table>
             
-            <div style="text-align: center; color: #9CA3AF; font-size: 12px; margin-top: 50px;">
+            <div style="text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;">
                 Thank you for choosing Jane's Studio!
             </div>
         </div>
