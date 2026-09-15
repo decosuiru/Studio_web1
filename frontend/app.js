@@ -509,33 +509,41 @@ function openEditPcModal(t) {
 function closePcModal() { closeModalAnim('pc-modal'); }
 
 
-// --- [NEW] HELPER FORMAT INVOICE LAMA ---
-// Ini akan mengubah ID lama menjadi format JNS-INV/DDMMYYNNN secara dinamis
+// --- [NEW] HELPER FORMAT INVOICE LAMA (Reset Harian Otomatis) ---
 function generateInvoiceNo(b) {
+    // Jika dari database sudah ada (booking baru), pakai yang ada
     if (b.invoice_no && !b.invoice_no.includes('OLD')) return b.invoice_no;
     
-    // Fallback untuk data lama berdasarkan tanggal booking & ID
-    const d = new Date(b.date);
+    // Jika belum ada (data lama), hitung otomatis berdasarkan hari itu
+    const d = new Date(b.created_at || b.date); 
     const dd = String(d.getDate()).padStart(2, '0');
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const yy = String(d.getFullYear()).slice(-2);
-    const seq = String(b.id).padStart(3, '0'); // Contoh: ID 24 -> 024
+    
+    // Ambil semua booking di hari yang sama persis
+    const sameDayBookings = allBookings.filter(bk => {
+        const bkDate = new Date(bk.created_at || bk.date);
+        return bkDate.getFullYear() === d.getFullYear() &&
+               bkDate.getMonth() === d.getMonth() &&
+               bkDate.getDate() === d.getDate();
+    });
+
+    // Urutkan berdasarkan ID dari yang terlama ke terbaru
+    sameDayBookings.sort((x, y) => x.id - y.id);
+
+    // Cari urutan ke berapa booking ini di hari tersebut
+    const index = sameDayBookings.findIndex(bk => bk.id === b.id);
+    const seq = String(index !== -1 ? index + 1 : 1).padStart(3, '0'); // Contoh: urutan 1 jadi 001
     
     return `JNS-INV/${dd}${mm}${yy}${seq}`;
 }
 
-
-// --- [UPDATED] PRINT INVOICE LOGIC ---
+// --- [UPDATED] PRINT INVOICE LOGIC (ANTI TERPOTONG) ---
 function printInvoice() {
     if (!currentViewedBooking) return;
     const b = currentViewedBooking;
     
-    const container = document.getElementById('invoice-print-container');
-    // Munculkan sementara display block (tapi posisinya tetap di left: -9999px)
-    // agar html2pdf bisa membaca kontennya secara utuh.
-    container.style.display = 'block';
-
-    const invNo = generateInvoiceNo(b); // Akan memformat invoice lama ke JNS-INV...
+    const invNo = generateInvoiceNo(b);
     document.getElementById('print_inv_no').textContent = invNo;
     document.getElementById('print_name').textContent = b.client_name;
     document.getElementById('print_phone').textContent = formatPhone(b.client_phone);
@@ -558,21 +566,37 @@ function printInvoice() {
     
     document.getElementById('print_remain').textContent = formatIDR(b.remaining_payment);
 
-    const element = document.getElementById('invoice-template');
+    // --- LOGIKA ANTI BUG PDF ---
+    const container = document.getElementById('invoice-print-container');
     
-    const opt = {
-        margin:       0.4, // Margin yang pas untuk A4
-        filename:     `${invNo}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        // Paksa lebar tangkapan (capture) ke 700px agar terhindar dari bug terpotong
-        html2canvas:  { scale: 2, useCORS: true, width: 700, windowWidth: 700 }, 
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-    };
+    // Trik: Letakkan elemen persis di pojok kiri atas tapi opacity 0 (transparan)
+    // agar html2pdf bisa membaca koordinatnya dengan sempurna tanpa digeser/scroll.
+    container.style.position = 'absolute';
+    container.style.left = '0px';
+    container.style.top = '0px';
+    container.style.zIndex = '-9999';
+    container.style.opacity = '0';
+    container.style.display = 'block';
 
-    html2pdf().set(opt).from(element).save().then(() => {
-        // Sembunyikan kembali elemen setelah sukses terunduh
-        container.style.display = 'none'; 
-    });
+    // Beri jeda 150ms agar browser selesai memposisikan ulang CSS di atas sebelum screenshot
+    setTimeout(() => {
+        const element = document.getElementById('invoice-template');
+        
+        const opt = {
+            margin:       0.4,
+            filename:     `${invNo}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            // scrollX & scrollY: 0 memaksa tangkapan layar (screenshot) murni dari ujung dokumen
+            html2canvas:  { scale: 2, useCORS: true, width: 700, windowWidth: 800, scrollX: 0, scrollY: 0 }, 
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+            // Sembunyikan dan kembalikan state setelah PDF sukses disimpan
+            container.style.display = 'none'; 
+            container.style.opacity = '1';
+        });
+    }, 150);
 }
 
 // --- [UPDATED] BOOKING MODALS ---
