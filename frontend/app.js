@@ -11,12 +11,20 @@ let inactivityTimer;
 let lastClickedDate = null; 
 let currentBaseDP = 0;
 let alertTimeout; 
-let currentViewedBooking = null; // [NEW] Variable to store active booking for PDF
+let currentViewedBooking = null; 
 
 let viewModeBookings = 'upcoming';
 let viewModeFinance = 'upcoming';
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
+
+// [NEW] FORMAT PHONE NUMBER (0821-1234-1234)
+function formatPhone(phone) {
+    if (!phone) return '';
+    const cleaned = ('' + phone).replace(/\D/g, ''); // Hapus semua karakter selain angka
+    const match = cleaned.match(/.{1,4}/g); // Potong tiap 4 angka
+    return match ? match.join('-') : phone;
+}
 
 function formatDateTime(ts) {
     if(!ts) return '';
@@ -307,6 +315,11 @@ function renderListTable() {
 
 function renderFinanceTable() {
     const filterType = document.getElementById('finance-filter').value;
+    const customDiv = document.getElementById('finance-custom');
+    
+    if(filterType === 'custom') customDiv.classList.remove('hidden');
+    else customDiv.classList.add('hidden');
+
     const range = getDateRange(filterType, document.getElementById('fin-start').value, document.getElementById('fin-end').value);
     
     let allTransactions =[];
@@ -328,9 +341,8 @@ function renderFinanceTable() {
         }
 
         if (dp > 0 || total === 0) {
-            let typeLabel = total === 0 ? "Management" : (dp >= total && settle === 0 ? "Full Payment" : "DP / First Pay");
+            let typeLabel = total === 0 ? "Management (Free)" : (dp >= total && settle === 0 ? "Full Payment" : "DP / First Pay");
             let txDate = new Date(b.dp_time || b.created_at || eventDate);
-            
             let isTxInRange = true;
             if (range && (txDate < range.start || txDate > range.end)) isTxInRange = false;
 
@@ -342,7 +354,6 @@ function renderFinanceTable() {
 
         if (settle > 0) {
             let txDate = new Date(b.settlement_time || b.created_at || eventDate);
-            
             let isTxInRange = true;
             if (range && (txDate < range.start || txDate > range.end)) isTxInRange = false;
 
@@ -377,13 +388,14 @@ function renderFinanceTable() {
             </td>
             <td>
                 <strong>${b.client_name}</strong><br>
-                <span style="font-size: 12px; color: #BBB;">Event: ${b.date.split('T')[0]}</span>
+                <span style="font-size: 12px; color: #BBB;">📞 ${formatPhone(b.client_phone)}</span>
             </td>
             <td class="hide-mobile">${formatIDR(b.total_price)}</td>
             <td><span class="role-pill" style="background: rgba(16, 185, 129, 0.15); color: #10B981;">${tx.type}</span></td>
             <td class="text-green">+ ${formatIDR(tx.amount)}</td>
             <td><span class="status-pill status-${b.status}">${b.status}</span></td>
-        </tr>`;
+        </tr>
+        `;
     }).join('');
 }
 
@@ -472,12 +484,8 @@ function openPcDetailModal(t) {
         amtEl.className = t.type === 'IN' ? 'text-green text-lg' : 'text-red text-lg';
     }
 
-    const editBtn = document.getElementById('btn-edit-pc');
-    if(editBtn) editBtn.onclick = () => openEditPcModal(t);
-    
-    const delBtn = document.getElementById('btn-del-pc');
-    if(delBtn) delBtn.onclick = () => deletePettyCash(t.id);
-    
+    document.getElementById('btn-edit-pc').onclick = () => openEditPcModal(t);
+    document.getElementById('btn-del-pc').onclick = () => deletePettyCash(t.id);
     document.getElementById('pc-detail-modal').classList.remove('hidden', 'closing');
 }
 function closePcDetailModal() { closeModalAnim('pc-detail-modal'); }
@@ -501,16 +509,18 @@ function openEditPcModal(t) {
 function closePcModal() { closeModalAnim('pc-modal'); }
 
 
-// --- [NEW] PRINT INVOICE LOGIC ---
+// --- [UPDATED] PRINT INVOICE LOGIC ---
 function printInvoice() {
     if (!currentViewedBooking) return;
     const b = currentViewedBooking;
     
-    // Fill the hidden template with data
+    const container = document.getElementById('invoice-print-container');
+    container.classList.remove('hidden');
+
     const invNo = b.invoice_no || `JNS-INV/OLD-${b.id}`;
     document.getElementById('print_inv_no').textContent = invNo;
     document.getElementById('print_name').textContent = b.client_name;
-    document.getElementById('print_phone').textContent = b.client_phone;
+    document.getElementById('print_phone').textContent = formatPhone(b.client_phone);
     document.getElementById('print_type').textContent = b.customer_type;
     document.getElementById('print_status').textContent = b.status;
     
@@ -530,23 +540,19 @@ function printInvoice() {
     
     document.getElementById('print_remain').textContent = formatIDR(b.remaining_payment);
 
-    // Unhide exactly when rendering the PDF, then re-hide
-    const container = document.getElementById('invoice-print-container');
-    container.style.display = 'block';
-
     const element = document.getElementById('invoice-template');
     
+    // [FIX] windowWidth forces html2canvas to capture the full 800px area perfectly, no matter the screen size
     const opt = {
         margin:       0.5,
         filename:     `${invNo}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
+        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 }, 
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
 
-    // Use html2pdf library to generate the PDF
     html2pdf().set(opt).from(element).save().then(() => {
-        container.style.display = 'none'; // Hide it again
+        container.classList.add('hidden'); 
     });
 }
 
@@ -556,14 +562,14 @@ function openDetailModalById(id) { const b = allBookings.find(x => x.id === id);
 
 function openDetailModal(b) {
     if(!b) return;
-    
-    currentViewedBooking = b; // Store for PDF generation
+    currentViewedBooking = b; 
+
     const invNo = b.invoice_no || `JNS-INV/OLD-${b.id}`;
 
     safeSetText('det_inv_no', invNo);
     safeSetText('det_name', b.client_name);
     safeSetText('det_type', b.customer_type);
-    safeSetText('det_phone', b.client_phone);
+    safeSetText('det_phone', formatPhone(b.client_phone));
     safeSetText('det_email', b.client_email || "N/A");
     safeSetText('det_date', b.date.split('T')[0]);
     safeSetText('det_time', `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`);
