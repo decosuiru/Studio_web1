@@ -532,13 +532,13 @@ function generateInvoiceNo(b) {
     return `JNS-INV/${dd}${mm}${yy}${seq}`;
 }
 
-// --- [UPDATED] PRINT INVOICE LOGIC (100% FOOLPROOF ISOLATION) ---
+// --- [UPDATED] PRINT INVOICE LOGIC (IFRAME ISOLATION METHOD) ---
 function printInvoice() {
     if (!currentViewedBooking) return;
     const b = currentViewedBooking;
     const invNo = generateInvoiceNo(b);
 
-    // 1. Masukkan data ke template HTML
+    // 1. Masukkan data ke dalam HTML Blueprint
     document.getElementById('print_inv_no').textContent = invNo;
     document.getElementById('print_name').textContent = b.client_name;
     document.getElementById('print_phone').textContent = formatPhone(b.client_phone);
@@ -558,7 +558,7 @@ function printInvoice() {
     }
     document.getElementById('print_remain').textContent = formatIDR(b.remaining_payment);
 
-    // 2. Munculkan Apple Loading Screen
+    // 2. Tampilkan Animasi Apple Loading
     const loader = document.createElement('div');
     loader.className = 'apple-loader-overlay';
     loader.innerHTML = `
@@ -566,71 +566,69 @@ function printInvoice() {
         <h3 style="color: white; font-weight: 500; font-size: 16px; letter-spacing: 0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Preparing PDF...</h3>
     `;
     document.body.appendChild(loader);
-
-    // Trigger animasi fade in
     requestAnimationFrame(() => loader.classList.add('show'));
 
-    // 3. Eksekusi PDF setelah loading screen menutupi layar (300ms)
+    // 3. TEKNIK IFRAME: Buat "Browser Virtual" yang kebal terhadap layar HP
+    const iframe = document.createElement('iframe');
+    
+    // Sembunyikan iframe di luar layar (Jangan gunakan display:none agar tetap terender oleh mesin)
+    iframe.style.position = 'fixed';
+    iframe.style.right = '-9999px';
+    iframe.style.bottom = '-9999px';
+    
+    // PAKSA ukuran iframe menjadi ukuran Desktop (800px width)
+    iframe.style.width = '800px';
+    iframe.style.height = '1131px'; // Perkiraan proporsi A4
+    document.body.appendChild(iframe);
+
+    // Ambil kode HTML dari template yang sudah diisi data
+    const templateHTML = document.getElementById('invoice-template').outerHTML;
+
+    // Tulis HTML tersebut ke dalam iframe virtual
+    const iframeDoc = iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(`
+        <html>
+        <head>
+            <style>
+                /* Hilangkan semua margin bawaan browser di dalam iframe */
+                body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; }
+                * { box-sizing: border-box; }
+            </style>
+        </head>
+        <body>
+            ${templateHTML}
+        </body>
+        </html>
+    `);
+    iframeDoc.close();
+
+    // 4. Beri jeda 500ms agar logo di dalam iframe termuat sepenuhnya sebelum difoto
     setTimeout(() => {
-        // Ambil elemen penting
-        const appView = document.getElementById('app-view');
-        const detailModal = document.getElementById('detail-modal');
-        const template = document.getElementById('invoice-template');
-        const container = document.getElementById('invoice-print-container');
-        
-        // Simpan background asli
-        const originalBg = document.body.style.backgroundImage;
-
-        // ISOLASI: Sembunyikan seluruh app dan jadikan background body putih murni
-        appView.style.display = 'none';
-        detailModal.style.display = 'none';
-        document.body.style.backgroundImage = 'none';
-        document.body.style.backgroundColor = 'white';
-
-        // Pindahkan template ke body agar bebas dari hambatan CSS dan Flexbox
-        document.body.appendChild(template);
-        template.style.display = 'block';
-
-        // Gulir ke ujung atas agar html2canvas tidak memotong halaman
-        window.scrollTo(0, 0);
+        // Ambil elemen yang ada DI DALAM iframe untuk di-print
+        const elementToPrint = iframeDoc.getElementById('invoice-template');
 
         const opt = {
             margin:       0.4,
             filename:     `${invNo}.pdf`,
             image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                windowWidth: 800, // Simulasi lebar layar desktop untuk html2canvas
-                width: 700      // Lebar asli template
-            }, 
+            html2canvas:  { scale: 2, useCORS: true }, // windowWidth tidak lagi dibutuhkan karena iframe sudah 800px
             jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
         };
 
         // Buat PDF
-        html2pdf().set(opt).from(template).save().then(() => {
-            // KEMBALIKAN SEMUA KE NORMAL
-            container.appendChild(template);
-            template.style.display = 'none';
-            appView.style.display = 'flex';
-            detailModal.style.display = 'flex';
-            document.body.style.backgroundImage = originalBg;
-
-            // Hilangkan Loading
+        html2pdf().set(opt).from(elementToPrint).save().then(() => {
+            // Hapus Iframe dan Loading setelah selesai
+            document.body.removeChild(iframe);
             loader.classList.remove('show');
             setTimeout(() => document.body.removeChild(loader), 300);
         }).catch((err) => {
             console.error("PDF Error: ", err);
-            // Kembalikan ke normal jika terjadi error
-            container.appendChild(template);
-            template.style.display = 'none';
-            appView.style.display = 'flex';
-            detailModal.style.display = 'flex';
-            document.body.style.backgroundImage = originalBg;
+            document.body.removeChild(iframe);
             loader.classList.remove('show');
             setTimeout(() => document.body.removeChild(loader), 300);
         });
-    }, 400); // Waktu yang cukup untuk animasi loading selesai
+    }, 500);
 }
 
 // --- [UPDATED] BOOKING MODALS ---
