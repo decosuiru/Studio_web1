@@ -532,13 +532,15 @@ function generateInvoiceNo(b) {
     return `JNS-INV/${dd}${mm}${yy}${seq}`;
 }
 
-// --- [UPDATED] PRINT INVOICE LOGIC (IFRAME ISOLATION METHOD) ---
+// --- [UPDATED] PRINT INVOICE LOGIC (ANTI-CROP FIX) ---
 function printInvoice() {
     if (!currentViewedBooking) return;
     const b = currentViewedBooking;
+    
+    // (Fungsi generateInvoiceNo akan terus memastikan invoice mereset ke 001 tiap hari)
     const invNo = generateInvoiceNo(b);
 
-    // 1. Masukkan data ke dalam HTML Blueprint
+    // 1. Masukkan data
     document.getElementById('print_inv_no').textContent = invNo;
     document.getElementById('print_name').textContent = b.client_name;
     document.getElementById('print_phone').textContent = formatPhone(b.client_phone);
@@ -558,7 +560,7 @@ function printInvoice() {
     }
     document.getElementById('print_remain').textContent = formatIDR(b.remaining_payment);
 
-    // 2. Tampilkan Animasi Apple Loading
+    // 2. Munculkan Apple Loading Screen
     const loader = document.createElement('div');
     loader.className = 'apple-loader-overlay';
     loader.innerHTML = `
@@ -568,63 +570,49 @@ function printInvoice() {
     document.body.appendChild(loader);
     requestAnimationFrame(() => loader.classList.add('show'));
 
-    // 3. TEKNIK IFRAME: Buat "Browser Virtual" yang kebal terhadap layar HP
-    const iframe = document.createElement('iframe');
+    // 3. Persiapkan Template untuk difoto
+    const container = document.getElementById('invoice-print-container');
+    const template = document.getElementById('invoice-template');
     
-    // Sembunyikan iframe di luar layar (Jangan gunakan display:none agar tetap terender oleh mesin)
-    iframe.style.position = 'fixed';
-    iframe.style.right = '-9999px';
-    iframe.style.bottom = '-9999px';
+    // Simpan pengaturan asli body
+    const originalOverflow = document.body.style.overflow;
     
-    // PAKSA ukuran iframe menjadi ukuran Desktop (800px width)
-    iframe.style.width = '800px';
-    iframe.style.height = '1131px'; // Perkiraan proporsi A4
-    document.body.appendChild(iframe);
+    // PENTING: Lebarkan body dan container secara paksa agar browser HP tidak memotongnya!
+    document.body.style.overflow = 'visible';
+    container.style.display = 'block';
+    container.style.position = 'absolute';
+    container.style.top = '0px';
+    container.style.left = '0px';
+    container.style.width = '800px'; 
+    container.style.zIndex = '999998'; // Taruh tepat di bawah layer hitam Loading
 
-    // Ambil kode HTML dari template yang sudah diisi data
-    const templateHTML = document.getElementById('invoice-template').outerHTML;
+    window.scrollTo(0, 0);
 
-    // Tulis HTML tersebut ke dalam iframe virtual
-    const iframeDoc = iframe.contentWindow.document;
-    iframeDoc.open();
-    iframeDoc.write(`
-        <html>
-        <head>
-            <style>
-                /* Hilangkan semua margin bawaan browser di dalam iframe */
-                body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; }
-                * { box-sizing: border-box; }
-            </style>
-        </head>
-        <body>
-            ${templateHTML}
-        </body>
-        </html>
-    `);
-    iframeDoc.close();
-
-    // 4. Beri jeda 500ms agar logo di dalam iframe termuat sepenuhnya sebelum difoto
+    // 4. Render PDF setelah diberi waktu untuk menyusun layout
     setTimeout(() => {
-        // Ambil elemen yang ada DI DALAM iframe untuk di-print
-        const elementToPrint = iframeDoc.getElementById('invoice-template');
-
         const opt = {
-            margin:       0.4,
+            margin:       [0.4, 0], // Top Bottom margin, Kiri Kanan 0 (Biar ditengahkan otomatis)
             filename:     `${invNo}.pdf`,
             image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { scale: 2, useCORS: true }, // windowWidth tidak lagi dibutuhkan karena iframe sudah 800px
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                width: 800,        // Paksa lebar kanvas ke 800px
+                windowWidth: 800   // Paksa browser merasa sedang di layar 800px
+            }, 
             jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
         };
 
-        // Buat PDF
-        html2pdf().set(opt).from(elementToPrint).save().then(() => {
-            // Hapus Iframe dan Loading setelah selesai
-            document.body.removeChild(iframe);
+        html2pdf().set(opt).from(template).save().then(() => {
+            // 5. Kembalikan semua pengaturan UI ke normal setelah berhasil
+            container.style.display = 'none';
+            document.body.style.overflow = originalOverflow;
             loader.classList.remove('show');
             setTimeout(() => document.body.removeChild(loader), 300);
         }).catch((err) => {
             console.error("PDF Error: ", err);
-            document.body.removeChild(iframe);
+            container.style.display = 'none';
+            document.body.style.overflow = originalOverflow;
             loader.classList.remove('show');
             setTimeout(() => document.body.removeChild(loader), 300);
         });
