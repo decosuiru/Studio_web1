@@ -511,16 +511,13 @@ function closePcModal() { closeModalAnim('pc-modal'); }
 
 // --- [NEW] HELPER FORMAT INVOICE LAMA (Reset Harian Otomatis) ---
 function generateInvoiceNo(b) {
-    // Jika dari database sudah ada (booking baru), pakai yang ada
     if (b.invoice_no && !b.invoice_no.includes('OLD')) return b.invoice_no;
     
-    // Jika belum ada (data lama), hitung otomatis berdasarkan hari itu
     const d = new Date(b.created_at || b.date); 
     const dd = String(d.getDate()).padStart(2, '0');
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const yy = String(d.getFullYear()).slice(-2);
     
-    // Ambil semua booking di hari yang sama persis
     const sameDayBookings = allBookings.filter(bk => {
         const bkDate = new Date(bk.created_at || bk.date);
         return bkDate.getFullYear() === d.getFullYear() &&
@@ -528,23 +525,21 @@ function generateInvoiceNo(b) {
                bkDate.getDate() === d.getDate();
     });
 
-    // Urutkan berdasarkan ID dari yang terlama ke terbaru
     sameDayBookings.sort((x, y) => x.id - y.id);
-
-    // Cari urutan ke berapa booking ini di hari tersebut
     const index = sameDayBookings.findIndex(bk => bk.id === b.id);
-    const seq = String(index !== -1 ? index + 1 : 1).padStart(3, '0'); // Contoh: urutan 1 jadi 001
+    const seq = String(index !== -1 ? index + 1 : 1).padStart(3, '0'); 
     
     return `JNS-INV/${dd}${mm}${yy}${seq}`;
 }
 
-// --- [UPDATED] PRINT INVOICE LOGIC (CLONING METHOD - FIXED BLANK PAGE) ---
+// --- [UPDATED] PRINT INVOICE LOGIC (LOADING SCREEN METHOD - 100% FOOLPROOF) ---
 function printInvoice() {
     if (!currentViewedBooking) return;
     const b = currentViewedBooking;
     
-    // 1. Masukkan data ke template tersembunyi
     const invNo = generateInvoiceNo(b);
+
+    // 1. Masukkan data ke template HTML
     document.getElementById('print_inv_no').textContent = invNo;
     document.getElementById('print_name').textContent = b.client_name;
     document.getElementById('print_phone').textContent = formatPhone(b.client_phone);
@@ -564,31 +559,46 @@ function printInvoice() {
     } else {
         settleRow.style.display = 'none';
     }
-    
     document.getElementById('print_remain').textContent = formatIDR(b.remaining_payment);
 
-    // 2. TEKNIK CLONING: Buat div virtual di luar struktur layar utama
+    // 2. Buat Tampilan Loading Screen (Mencegah user melihat proses clone)
+    const loader = document.createElement('div');
+    loader.style.position = 'fixed';
+    loader.style.top = '0';
+    loader.style.left = '0';
+    loader.style.width = '100vw';
+    loader.style.height = '100vh';
+    loader.style.backgroundColor = 'rgba(17, 24, 39, 0.9)'; // Warna gelap
+    loader.style.color = 'white';
+    loader.style.display = 'flex';
+    loader.style.justifyContent = 'center';
+    loader.style.alignItems = 'center';
+    loader.style.zIndex = '999999'; // Paling depan
+    loader.innerHTML = '<h2 style="font-family: sans-serif; font-size: 20px;">Generating PDF...</h2>';
+    document.body.appendChild(loader);
+
+    // 3. Clone Template ke layar utama tepat di bawah Loading Screen
     const originalTemplate = document.getElementById('invoice-template');
     const printWrapper = document.createElement('div');
     
-    // [FIX] Jangan gunakan opacity: 0 karena akan membuat PDF kosong!
-    // Gunakan z-index: -9999 agar tersembunyi di belakang background body.
-    printWrapper.style.position = 'fixed';
+    printWrapper.style.position = 'absolute';
     printWrapper.style.top = '0px';
     printWrapper.style.left = '0px';
     printWrapper.style.width = '800px'; 
     printWrapper.style.background = 'white';
-    printWrapper.style.zIndex = '-9999';
+    // Letakkan persis 1 level di bawah loading screen
+    printWrapper.style.zIndex = '999998'; 
 
-    // Salin (clone) template beserta isinya
     const clonedTemplate = originalTemplate.cloneNode(true);
-    clonedTemplate.style.display = 'block'; // Pastikan clone tidak tersembunyi
-    clonedTemplate.style.margin = '0 auto';
+    clonedTemplate.style.display = 'block'; 
     
     printWrapper.appendChild(clonedTemplate);
     document.body.appendChild(printWrapper);
 
-    // Beri jeda sangat singkat agar browser merender elemen tersebut sebelum difoto
+    // [PENTING] Scroll ke atas agar html2canvas tidak memotong PDF karena layar digeser
+    window.scrollTo(0, 0);
+
+    // 4. Beri jeda 500ms agar font & logo ter-render sepenuhnya sebelum difoto
     setTimeout(() => {
         const opt = {
             margin:       0.4,
@@ -606,11 +616,18 @@ function printInvoice() {
         };
 
         html2pdf().set(opt).from(printWrapper).save().then(() => {
-            // 4. Hapus elemen virtual setelah PDF selesai dibuat
+            // 5. Bersihkan layar setelah PDF terunduh
             document.body.removeChild(printWrapper);
+            document.body.removeChild(loader);
+        }).catch((err) => {
+            console.error("PDF Error: ", err);
+            document.body.removeChild(printWrapper);
+            document.body.removeChild(loader);
         });
-    }, 100);
-}// --- [UPDATED] BOOKING MODALS ---
+    }, 500);
+}
+
+// --- [UPDATED] BOOKING MODALS ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
 function openDetailModal(b) {
