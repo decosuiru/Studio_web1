@@ -292,9 +292,10 @@
         </div>
     </div>
 
-  <!-- [UPDATED] HIDDEN INVOICE TEMPLATE UNTUK PDF (ANTI-TERPOTONG) -->
-    <div id="invoice-print-container" class="hidden" style="position: absolute; left: 0; top: 0; width: 800px; z-index: -9999; opacity: 0; pointer-events: none;">
-        <div id="invoice-template" style="padding: 40px; background: white; color: #1F2937; font-family: -apple-system, sans-serif; width: 800px; box-sizing: border-box;">
+<!-- [UPDATED] HIDDEN INVOICE TEMPLATE UNTUK PDF (FIXED LAYOUT) -->
+    <!-- Posisi fixed jauh di kiri agar tidak terlihat di layar, tapi terbaca sempurna oleh PDF -->
+    <div id="invoice-print-container" style="position: fixed; left: -9999px; top: 0; width: 800px; z-index: -9999;">
+        <div id="invoice-template" style="padding: 40px; background: white; color: #1F2937; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; width: 800px; box-sizing: border-box;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #F3F4F6; padding-bottom: 20px; margin-bottom: 20px;">
                 <img src="https://raw.githubusercontent.com/decosuiru/Studio_web1/main/logo/jane%27sblack.png" style="max-height: 50px;">
                 <div style="text-align: right;">
