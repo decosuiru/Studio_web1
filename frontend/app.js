@@ -538,7 +538,7 @@ function generateInvoiceNo(b) {
     return `JNS-INV/${dd}${mm}${yy}${seq}`;
 }
 
-// --- [UPDATED] PRINT INVOICE LOGIC (CLONING METHOD - ANTI BUG HP) ---
+// --- [UPDATED] PRINT INVOICE LOGIC (CLONING METHOD - FIXED BLANK PAGE) ---
 function printInvoice() {
     if (!currentViewedBooking) return;
     const b = currentViewedBooking;
@@ -569,48 +569,48 @@ function printInvoice() {
 
     // 2. TEKNIK CLONING: Buat div virtual di luar struktur layar utama
     const originalTemplate = document.getElementById('invoice-template');
-    
     const printWrapper = document.createElement('div');
-    // Setel sebagai ukuran PC absolut tanpa memedulikan batas layar mobile
-    printWrapper.style.position = 'absolute';
+    
+    // [FIX] Jangan gunakan opacity: 0 karena akan membuat PDF kosong!
+    // Gunakan z-index: -9999 agar tersembunyi di belakang background body.
+    printWrapper.style.position = 'fixed';
     printWrapper.style.top = '0px';
     printWrapper.style.left = '0px';
     printWrapper.style.width = '800px'; 
     printWrapper.style.background = 'white';
     printWrapper.style.zIndex = '-9999';
-    printWrapper.style.opacity = '0';
-    printWrapper.style.pointerEvents = 'none';
 
     // Salin (clone) template beserta isinya
     const clonedTemplate = originalTemplate.cloneNode(true);
-    clonedTemplate.style.display = 'block'; 
+    clonedTemplate.style.display = 'block'; // Pastikan clone tidak tersembunyi
+    clonedTemplate.style.margin = '0 auto';
     
     printWrapper.appendChild(clonedTemplate);
     document.body.appendChild(printWrapper);
 
-    // 3. Render ke PDF
-    const opt = {
-        margin:       0.4,
-        filename:     `${invNo}.pdf`,
-        image:        { type: 'jpeg', quality: 1 },
-        html2canvas:  { 
-            scale: 2, 
-            useCORS: true, 
-            // Paksa html2canvas melihat elemen ini sebagai elemen layar PC (800px)
-            width: 800, 
-            windowWidth: 800, 
-            scrollX: 0, 
-            scrollY: 0 
-        }, 
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-    };
+    // Beri jeda sangat singkat agar browser merender elemen tersebut sebelum difoto
+    setTimeout(() => {
+        const opt = {
+            margin:       0.4,
+            filename:     `${invNo}.pdf`,
+            image:        { type: 'jpeg', quality: 1 },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                width: 800, 
+                windowWidth: 800, 
+                scrollX: 0, 
+                scrollY: 0 
+            }, 
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
 
-    html2pdf().set(opt).from(printWrapper).save().then(() => {
-        // 4. Hapus elemen virtual setelah PDF selesai dibuat agar tidak menumpuk di memori
-        document.body.removeChild(printWrapper);
-    });
-}
-// --- [UPDATED] BOOKING MODALS ---
+        html2pdf().set(opt).from(printWrapper).save().then(() => {
+            // 4. Hapus elemen virtual setelah PDF selesai dibuat
+            document.body.removeChild(printWrapper);
+        });
+    }, 100);
+}// --- [UPDATED] BOOKING MODALS ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
 function openDetailModal(b) {
