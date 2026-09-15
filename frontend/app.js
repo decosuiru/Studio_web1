@@ -4,16 +4,17 @@ const SOCKET_URL = API_URL.replace('/api', '');
 
 let currentUser, currentToken;
 let fullCalendarInstance = null;
-let allBookings =[];
+let allBookings = [];
 let allPettyCash =[];
 let socket = null;
 let inactivityTimer;
 let lastClickedDate = null; 
+let currentBaseDP = 0;
 let alertTimeout; 
+let currentViewedBooking = null; // [NEW] Variable to store active booking for PDF
 
 let viewModeBookings = 'upcoming';
 let viewModeFinance = 'upcoming';
-let currentBaseDP = 0;
 
 const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 
@@ -43,7 +44,6 @@ function closeModalAnim(modalId) {
     setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('closing'); }, 200);
 }
 
-// BULLETPROOF UI SETTER HELPER
 function safeSetHTML(id, val) { const el = document.getElementById(id); if(el) el.innerHTML = val; }
 function safeSetText(id, val) { const el = document.getElementById(id); if(el) el.textContent = val; }
 
@@ -154,7 +154,6 @@ function isBookingOngoing(dateStr, startStr, endStr) {
     return now >= start && now <= end;
 }
 
-// --- FILTER LOGIC ---
 function getDateRange(filterType, customStart, customEnd) {
     const now = new Date();
     let start, end;
@@ -205,7 +204,6 @@ function toggleFinanceView(mode) {
     renderFinanceTable();
 }
 
-// --- RENDERING CALENDAR ---
 function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
     if(!calendarEl) return;
@@ -309,11 +307,6 @@ function renderListTable() {
 
 function renderFinanceTable() {
     const filterType = document.getElementById('finance-filter').value;
-    const customDiv = document.getElementById('finance-custom');
-    
-    if(filterType === 'custom') customDiv.classList.remove('hidden');
-    else customDiv.classList.add('hidden');
-
     const range = getDateRange(filterType, document.getElementById('fin-start').value, document.getElementById('fin-end').value);
     
     let allTransactions =[];
@@ -323,13 +316,9 @@ function renderFinanceTable() {
         const dp = parseFloat(b.dp_paid) || 0;
         const settle = parseFloat(b.settlement_paid) || 0;
         const total = parseFloat(b.total_price) || 0;
-
-        // [FIX] Use the exact time the booking was created for Gross Calculation
-        // Fallback to event date only if created_at doesn't exist in older records
         const eventDate = new Date(`${b.date.split('T')[0]}T${b.start_time}`);
         const bookingCreateDate = new Date(b.created_at || b.dp_time || eventDate);
 
-        // 1. Calculate Summary Cards (Gross & Remaining based on Creation Date)
         let isBookingInRange = true;
         if (range && (bookingCreateDate < range.start || bookingCreateDate > range.end)) isBookingInRange = false;
 
@@ -338,9 +327,8 @@ function renderFinanceTable() {
             remainTotal += parseFloat(b.remaining_payment) || 0;
         }
 
-        // 2. Extract DP / First Payment Transaction
         if (dp > 0 || total === 0) {
-            let typeLabel = total === 0 ? "Management (Free)" : (dp >= total && settle === 0 ? "Full Payment" : "DP / First Pay");
+            let typeLabel = total === 0 ? "Management" : (dp >= total && settle === 0 ? "Full Payment" : "DP / First Pay");
             let txDate = new Date(b.dp_time || b.created_at || eventDate);
             
             let isTxInRange = true;
@@ -348,11 +336,10 @@ function renderFinanceTable() {
 
             if (isTxInRange) {
                 allTransactions.push({ booking: b, date: txDate, amount: dp, type: typeLabel });
-                dpTotal += dp; // Add to Received Summary
+                dpTotal += dp; 
             }
         }
 
-        // 3. Extract Settlement / Final Payment Transaction
         if (settle > 0) {
             let txDate = new Date(b.settlement_time || b.created_at || eventDate);
             
@@ -361,17 +348,15 @@ function renderFinanceTable() {
 
             if (isTxInRange) {
                 allTransactions.push({ booking: b, date: txDate, amount: settle, type: "Settlement" });
-                dpTotal += settle; // Add to Received Summary
+                dpTotal += settle; 
             }
         }
     });
 
-    // Update Summary Cards accurately
     safeSetText('fin-income', formatIDR(gross));
     safeSetText('fin-dp', formatIDR(dpTotal));
     safeSetText('fin-remain', formatIDR(remainTotal));
 
-    // Sort Transactions by Date (Newest first)
     allTransactions.sort((a, b) => b.date - a.date);
 
     const tbody = document.querySelector('#finance-table tbody');
@@ -382,7 +367,6 @@ function renderFinanceTable() {
         return;
     }
 
-    // Render Transaction Ledger
     tbody.innerHTML = allTransactions.map(tx => {
         const b = tx.booking;
         return `
@@ -399,8 +383,7 @@ function renderFinanceTable() {
             <td><span class="role-pill" style="background: rgba(16, 185, 129, 0.15); color: #10B981;">${tx.type}</span></td>
             <td class="text-green">+ ${formatIDR(tx.amount)}</td>
             <td><span class="status-pill status-${b.status}">${b.status}</span></td>
-        </tr>
-        `;
+        </tr>`;
     }).join('');
 }
 
@@ -469,12 +452,115 @@ async function withdrawAllPettyCash() {
     } catch(err) { showAlert(err.message, true); }
 }
 
-// --- BULLETPROOF DETAIL MODALS ---
+// --- PETTY CASH MODALS ---
+function openPcDetailModalById(id) { const t = allPettyCash.find(x => x.id === id); if(t) openPcDetailModal(t); }
+
+function openPcDetailModal(t) {
+    safeSetText('pc_det_date', t.date.split('T')[0]);
+    safeSetText('pc_det_desc', t.description);
+    
+    const typeEl = document.getElementById('pc_det_type');
+    if(typeEl) {
+        typeEl.textContent = t.type;
+        typeEl.style.background = t.type === 'IN' ? '#D1FAE5' : '#FEE2E2';
+        typeEl.style.color = t.type === 'IN' ? '#065F46' : '#991B1B';
+    }
+
+    const amtEl = document.getElementById('pc_det_amount');
+    if(amtEl) {
+        amtEl.textContent = formatIDR(t.amount);
+        amtEl.className = t.type === 'IN' ? 'text-green text-lg' : 'text-red text-lg';
+    }
+
+    const editBtn = document.getElementById('btn-edit-pc');
+    if(editBtn) editBtn.onclick = () => openEditPcModal(t);
+    
+    const delBtn = document.getElementById('btn-del-pc');
+    if(delBtn) delBtn.onclick = () => deletePettyCash(t.id);
+    
+    document.getElementById('pc-detail-modal').classList.remove('hidden', 'closing');
+}
+function closePcDetailModal() { closeModalAnim('pc-detail-modal'); }
+
+function openPcModal() {
+    document.getElementById('pc-form').reset();
+    document.getElementById('pc_id').value = "";
+    safeSetText('pc-modal-title', "Add Petty Cash");
+    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
+}
+function openEditPcModal(t) {
+    closePcDetailModal();
+    document.getElementById('pc_id').value = t.id;
+    safeSetText('pc-modal-title', "Edit Petty Cash");
+    document.getElementById('pc_date').value = t.date.split('T')[0];
+    document.getElementById('pc_desc').value = t.description;
+    document.getElementById('pc_type').value = t.type;
+    document.getElementById('pc_amount').value = t.amount;
+    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
+}
+function closePcModal() { closeModalAnim('pc-modal'); }
+
+
+// --- [NEW] PRINT INVOICE LOGIC ---
+function printInvoice() {
+    if (!currentViewedBooking) return;
+    const b = currentViewedBooking;
+    
+    // Fill the hidden template with data
+    const invNo = b.invoice_no || `JNS-INV/OLD-${b.id}`;
+    document.getElementById('print_inv_no').textContent = invNo;
+    document.getElementById('print_name').textContent = b.client_name;
+    document.getElementById('print_phone').textContent = b.client_phone;
+    document.getElementById('print_type').textContent = b.customer_type;
+    document.getElementById('print_status').textContent = b.status;
+    
+    document.getElementById('print_date').textContent = b.date.split('T')[0];
+    document.getElementById('print_time').textContent = `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`;
+    
+    document.getElementById('print_total').textContent = formatIDR(b.total_price);
+    document.getElementById('print_dp').textContent = formatIDR(b.dp_paid);
+    
+    const settleRow = document.getElementById('print_settle_row');
+    if (parseFloat(b.settlement_paid) > 0) {
+        settleRow.style.display = 'table-row';
+        document.getElementById('print_settle').textContent = formatIDR(b.settlement_paid);
+    } else {
+        settleRow.style.display = 'none';
+    }
+    
+    document.getElementById('print_remain').textContent = formatIDR(b.remaining_payment);
+
+    // Unhide exactly when rendering the PDF, then re-hide
+    const container = document.getElementById('invoice-print-container');
+    container.style.display = 'block';
+
+    const element = document.getElementById('invoice-template');
+    
+    const opt = {
+        margin:       0.5,
+        filename:     `${invNo}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Use html2pdf library to generate the PDF
+    html2pdf().set(opt).from(element).save().then(() => {
+        container.style.display = 'none'; // Hide it again
+    });
+}
+
+
+// --- BOOKING MODALS ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
 function openDetailModal(b) {
     if(!b) return;
+    
+    currentViewedBooking = b; // Store for PDF generation
+    const invNo = b.invoice_no || `JNS-INV/OLD-${b.id}`;
 
+    safeSetText('det_inv_no', invNo);
     safeSetText('det_name', b.client_name);
     safeSetText('det_type', b.customer_type);
     safeSetText('det_phone', b.client_phone);
@@ -506,7 +592,6 @@ function openDetailModal(b) {
     const delBtn = document.getElementById('delete-btn');
     if(delBtn) delBtn.onclick = () => deleteFromModal(b.id);
 
-    // Quick Add Settlement Button Logic
     const settleBtn = document.getElementById('btn-settle-from-detail');
     if (settleBtn) {
         if (b.status === 'Paid' || b.customer_type === 'Management') {
@@ -556,11 +641,6 @@ function calcRemaining() {
     const dp = parseFloat(document.getElementById('dp_paid').value) || 0;
     const sp = parseFloat(document.getElementById('settlement_input').value) || 0;
     safeSetText('remaining-text', formatIDR(t - dp - sp));
-}
-
-function handleManualDP() {
-    // DP and Settlement are now completely separate!
-    calcRemaining();
 }
 
 function markAsFullyPaid() {
@@ -637,54 +717,6 @@ if(bookingForm) {
         } catch (err) { showAlert(err.message, true); }
     });
 }
-
-// --- PETTY CASH ---
-function openPcDetailModalById(id) { const t = allPettyCash.find(x => x.id === id); if(t) openPcDetailModal(t); }
-
-function openPcDetailModal(t) {
-    safeSetText('pc_det_date', t.date.split('T')[0]);
-    safeSetText('pc_det_desc', t.description);
-    
-    const typeEl = document.getElementById('pc_det_type');
-    if(typeEl) {
-        typeEl.textContent = t.type;
-        typeEl.style.background = t.type === 'IN' ? '#D1FAE5' : '#FEE2E2';
-        typeEl.style.color = t.type === 'IN' ? '#065F46' : '#991B1B';
-    }
-
-    const amtEl = document.getElementById('pc_det_amount');
-    if(amtEl) {
-        amtEl.textContent = formatIDR(t.amount);
-        amtEl.className = t.type === 'IN' ? 'text-green text-lg' : 'text-red text-lg';
-    }
-
-    const editBtn = document.getElementById('btn-edit-pc');
-    if(editBtn) editBtn.onclick = () => openEditPcModal(t);
-    
-    const delBtn = document.getElementById('btn-del-pc');
-    if(delBtn) delBtn.onclick = () => deletePettyCash(t.id);
-    
-    document.getElementById('pc-detail-modal').classList.remove('hidden', 'closing');
-}
-function closePcDetailModal() { closeModalAnim('pc-detail-modal'); }
-
-function openPcModal() {
-    document.getElementById('pc-form').reset();
-    document.getElementById('pc_id').value = "";
-    safeSetText('pc-modal-title', "Add Petty Cash");
-    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
-}
-function openEditPcModal(t) {
-    closePcDetailModal();
-    document.getElementById('pc_id').value = t.id;
-    safeSetText('pc-modal-title', "Edit Petty Cash");
-    document.getElementById('pc_date').value = t.date.split('T')[0];
-    document.getElementById('pc_desc').value = t.description;
-    document.getElementById('pc_type').value = t.type;
-    document.getElementById('pc_amount').value = t.amount;
-    document.getElementById('pc-modal').classList.remove('hidden', 'closing');
-}
-function closePcModal() { closeModalAnim('pc-modal'); }
 
 const pcForm = document.getElementById('pc-form');
 if(pcForm) {
