@@ -538,11 +538,12 @@ function generateInvoiceNo(b) {
     return `JNS-INV/${dd}${mm}${yy}${seq}`;
 }
 
-// --- [UPDATED] PRINT INVOICE LOGIC (ANTI TERPOTONG) ---
+// --- [UPDATED] PRINT INVOICE LOGIC (CLONING METHOD - ANTI BUG HP) ---
 function printInvoice() {
     if (!currentViewedBooking) return;
     const b = currentViewedBooking;
     
+    // 1. Masukkan data ke template tersembunyi
     const invNo = generateInvoiceNo(b);
     document.getElementById('print_inv_no').textContent = invNo;
     document.getElementById('print_name').textContent = b.client_name;
@@ -566,39 +567,49 @@ function printInvoice() {
     
     document.getElementById('print_remain').textContent = formatIDR(b.remaining_payment);
 
-    // --- LOGIKA ANTI BUG PDF ---
-    const container = document.getElementById('invoice-print-container');
+    // 2. TEKNIK CLONING: Buat div virtual di luar struktur layar utama
+    const originalTemplate = document.getElementById('invoice-template');
     
-    // Trik: Letakkan elemen persis di pojok kiri atas tapi opacity 0 (transparan)
-    // agar html2pdf bisa membaca koordinatnya dengan sempurna tanpa digeser/scroll.
-    container.style.position = 'absolute';
-    container.style.left = '0px';
-    container.style.top = '0px';
-    container.style.zIndex = '-9999';
-    container.style.opacity = '0';
-    container.style.display = 'block';
+    const printWrapper = document.createElement('div');
+    // Setel sebagai ukuran PC absolut tanpa memedulikan batas layar mobile
+    printWrapper.style.position = 'absolute';
+    printWrapper.style.top = '0px';
+    printWrapper.style.left = '0px';
+    printWrapper.style.width = '800px'; 
+    printWrapper.style.background = 'white';
+    printWrapper.style.zIndex = '-9999';
+    printWrapper.style.opacity = '0';
+    printWrapper.style.pointerEvents = 'none';
 
-    // Beri jeda 150ms agar browser selesai memposisikan ulang CSS di atas sebelum screenshot
-    setTimeout(() => {
-        const element = document.getElementById('invoice-template');
-        
-        const opt = {
-            margin:       0.4,
-            filename:     `${invNo}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            // scrollX & scrollY: 0 memaksa tangkapan layar (screenshot) murni dari ujung dokumen
-            html2canvas:  { scale: 2, useCORS: true, width: 700, windowWidth: 800, scrollX: 0, scrollY: 0 }, 
-            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-        };
+    // Salin (clone) template beserta isinya
+    const clonedTemplate = originalTemplate.cloneNode(true);
+    clonedTemplate.style.display = 'block'; 
+    
+    printWrapper.appendChild(clonedTemplate);
+    document.body.appendChild(printWrapper);
 
-        html2pdf().set(opt).from(element).save().then(() => {
-            // Sembunyikan dan kembalikan state setelah PDF sukses disimpan
-            container.style.display = 'none'; 
-            container.style.opacity = '1';
-        });
-    }, 150);
+    // 3. Render ke PDF
+    const opt = {
+        margin:       0.4,
+        filename:     `${invNo}.pdf`,
+        image:        { type: 'jpeg', quality: 1 },
+        html2canvas:  { 
+            scale: 2, 
+            useCORS: true, 
+            // Paksa html2canvas melihat elemen ini sebagai elemen layar PC (800px)
+            width: 800, 
+            windowWidth: 800, 
+            scrollX: 0, 
+            scrollY: 0 
+        }, 
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(printWrapper).save().then(() => {
+        // 4. Hapus elemen virtual setelah PDF selesai dibuat agar tidak menumpuk di memori
+        document.body.removeChild(printWrapper);
+    });
 }
-
 // --- [UPDATED] BOOKING MODALS ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
