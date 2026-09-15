@@ -577,7 +577,7 @@ function printInvoice() {
     iframe.style.bottom = '-9999px';
     
     // PAKSA ukuran iframe menjadi ukuran Desktop (800px width)
-    iframe.style.width = '850px';
+    iframe.style.width = '800px';
     iframe.style.height = '1131px'; // Perkiraan proporsi A4
     document.body.appendChild(iframe);
 
@@ -613,7 +613,7 @@ function printInvoice() {
             filename:     `${invNo}.pdf`,
             image:        { type: 'jpeg', quality: 1 },
             html2canvas:  { scale: 2, useCORS: true }, // windowWidth tidak lagi dibutuhkan karena iframe sudah 800px
-            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
         };
 
         // Buat PDF
