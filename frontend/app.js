@@ -577,7 +577,7 @@ function printInvoice() {
     iframe.style.bottom = '-9999px';
     
     // PAKSA ukuran iframe menjadi ukuran Desktop (800px width)
-    iframe.style.width = '800px';
+    iframe.style.width = '850px';
     iframe.style.height = '1131px'; // Perkiraan proporsi A4
     document.body.appendChild(iframe);
 
