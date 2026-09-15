@@ -530,8 +530,12 @@ function printInvoice() {
     if (!currentViewedBooking) return;
     const b = currentViewedBooking;
     
-    const invNo = generateInvoiceNo(b);
+    const container = document.getElementById('invoice-print-container');
+    // Munculkan sementara display block (tapi posisinya tetap di left: -9999px)
+    // agar html2pdf bisa membaca kontennya secara utuh.
+    container.style.display = 'block';
 
+    const invNo = generateInvoiceNo(b); // Akan memformat invoice lama ke JNS-INV...
     document.getElementById('print_inv_no').textContent = invNo;
     document.getElementById('print_name').textContent = b.client_name;
     document.getElementById('print_phone').textContent = formatPhone(b.client_phone);
@@ -556,18 +560,20 @@ function printInvoice() {
 
     const element = document.getElementById('invoice-template');
     
-    // [FIX] windowWidth 800px memastikan html2canvas tidak menggunakan ukuran layar HP yang sempit
     const opt = {
-        margin:       0.5,
+        margin:       0.4, // Margin yang pas untuk A4
         filename:     `${invNo}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800, width: 800 }, 
+        // Paksa lebar tangkapan (capture) ke 700px agar terhindar dari bug terpotong
+        html2canvas:  { scale: 2, useCORS: true, width: 700, windowWidth: 700 }, 
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(opt).from(element).save();
+    html2pdf().set(opt).from(element).save().then(() => {
+        // Sembunyikan kembali elemen setelah sukses terunduh
+        container.style.display = 'none'; 
+    });
 }
-
 
 // --- [UPDATED] BOOKING MODALS ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
