@@ -509,15 +509,29 @@ function openEditPcModal(t) {
 function closePcModal() { closeModalAnim('pc-modal'); }
 
 
+// --- [NEW] HELPER FORMAT INVOICE LAMA ---
+// Ini akan mengubah ID lama menjadi format JNS-INV/DDMMYYNNN secara dinamis
+function generateInvoiceNo(b) {
+    if (b.invoice_no && !b.invoice_no.includes('OLD')) return b.invoice_no;
+    
+    // Fallback untuk data lama berdasarkan tanggal booking & ID
+    const d = new Date(b.date);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = String(d.getFullYear()).slice(-2);
+    const seq = String(b.id).padStart(3, '0'); // Contoh: ID 24 -> 024
+    
+    return `JNS-INV/${dd}${mm}${yy}${seq}`;
+}
+
+
 // --- [UPDATED] PRINT INVOICE LOGIC ---
 function printInvoice() {
     if (!currentViewedBooking) return;
     const b = currentViewedBooking;
     
-    const container = document.getElementById('invoice-print-container');
-    container.classList.remove('hidden');
+    const invNo = generateInvoiceNo(b);
 
-    const invNo = b.invoice_no || `JNS-INV/OLD-${b.id}`;
     document.getElementById('print_inv_no').textContent = invNo;
     document.getElementById('print_name').textContent = b.client_name;
     document.getElementById('print_phone').textContent = formatPhone(b.client_phone);
@@ -542,29 +556,28 @@ function printInvoice() {
 
     const element = document.getElementById('invoice-template');
     
-    // [FIX] windowWidth forces html2canvas to capture the full 800px area perfectly, no matter the screen size
+    // [FIX] windowWidth 800px memastikan html2canvas tidak menggunakan ukuran layar HP yang sempit
     const opt = {
         margin:       0.5,
         filename:     `${invNo}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 }, 
+        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800, width: 800 }, 
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(opt).from(element).save().then(() => {
-        container.classList.add('hidden'); 
-    });
+    html2pdf().set(opt).from(element).save();
 }
 
 
-// --- BOOKING MODALS ---
+// --- [UPDATED] BOOKING MODALS ---
 function openDetailModalById(id) { const b = allBookings.find(x => x.id === id); if(b) openDetailModal(b); }
 
 function openDetailModal(b) {
     if(!b) return;
     currentViewedBooking = b; 
 
-    const invNo = b.invoice_no || `JNS-INV/OLD-${b.id}`;
+    // Panggil helper untuk mendapatkan format yang seragam
+    const invNo = generateInvoiceNo(b);
 
     safeSetText('det_inv_no', invNo);
     safeSetText('det_name', b.client_name);
