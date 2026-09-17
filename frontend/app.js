@@ -542,7 +542,7 @@ function generateInvoiceNo(b) {
     const index = sameDayBookings.findIndex(bk => bk.id === b.id);
     const seq = String(index !== -1 ? index + 1 : 1).padStart(3, '0'); 
     
-    return `JNS/${dd}${mm}${yy}${seq}`;
+    return `JHS/${dd}${mm}${yy}${seq}`;
 }
 
 // --- [UPDATED] PRINT INVOICE LOGIC (IFRAME ISOLATION METHOD) ---
