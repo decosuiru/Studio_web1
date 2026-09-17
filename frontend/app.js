@@ -32,6 +32,19 @@ function formatDateTime(ts) {
     return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour:'2-digit', minute:'2-digit' });
 }
 
+function formatDateID(dateStr) {
+    if (!dateStr) return '';
+    
+    const date = new Date(dateStr);
+    if (isNaN(date)) return dateStr;
+
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+
+    return `${dd}/${mm}/${yyyy}`;
+}
+
 function showAlert(msg, isError = false) {
     const alertBox = document.getElementById('alert-box');
     clearTimeout(alertTimeout);
@@ -302,7 +315,7 @@ function renderListTable() {
         const received = parseFloat(b.dp_paid) + parseFloat(b.settlement_paid);
         return `
         <tr style="${isLive ? 'background-color: rgba(16, 185, 129, 0.08);' : ''}">
-            <td>${b.date.split('T')[0]}</td>
+            <td>${formatDateID(b.date)}</td>
             <td style="font-weight: 600; font-size: 13px;">${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}</td>
             <td><strong>${b.client_name}</strong> ${liveBadge}</td>
             <td class="hide-mobile">${b.customer_type}</td>
@@ -432,7 +445,7 @@ function renderPettyCash() {
 
     tbody.innerHTML = filteredRange.map(t => `
         <tr>
-            <td>${t.date.split('T')[0]}</td>
+            <td>${formatDateID(t.date)}</td>
             <td>${t.description}</td>
             <td class="hide-mobile"><span class="role-pill" style="background:${t.type==='IN'?'#D1FAE5':'#FEE2E2'}; color:${t.type==='IN'?'#065F46':'#991B1B'}">${t.type}</span></td>
             <td class="${t.type==='IN'?'text-green':'text-red'}">${t.type==='IN'?'+':'-'} ${formatIDR(t.amount)}</td>
@@ -468,7 +481,7 @@ async function withdrawAllPettyCash() {
 function openPcDetailModalById(id) { const t = allPettyCash.find(x => x.id === id); if(t) openPcDetailModal(t); }
 
 function openPcDetailModal(t) {
-    safeSetText('pc_det_date', t.date.split('T')[0]);
+    safeSetText('pc_det_date', formatDateID(t.date));
     safeSetText('pc_det_desc', t.description);
     
     const typeEl = document.getElementById('pc_det_type');
@@ -544,7 +557,7 @@ function printInvoice() {
     document.getElementById('print_phone').textContent = formatPhone(b.client_phone);
     document.getElementById('print_type').textContent = b.customer_type;
     document.getElementById('print_status').textContent = b.status;
-    document.getElementById('print_date').textContent = b.date.split('T')[0];
+    document.getElementById('print_date').textContent = formatDateID(b.date);
     document.getElementById('print_time').textContent = `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`;
     document.getElementById('print_total').textContent = formatIDR(b.total_price);
     document.getElementById('print_dp').textContent = formatIDR(b.dp_paid);
@@ -646,7 +659,7 @@ function openDetailModal(b) {
     safeSetText('det_type', b.customer_type);
     safeSetText('det_phone', formatPhone(b.client_phone));
     safeSetText('det_email', b.client_email || "N/A");
-    safeSetText('det_date', b.date.split('T')[0]);
+    safeSetText('det_date', formatDateID(b.date));
     safeSetText('det_time', `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`);
     safeSetText('det_total', formatIDR(b.total_price));
 
