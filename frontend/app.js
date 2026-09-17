@@ -646,7 +646,7 @@ function openDetailModal(b) {
     safeSetText('det_type', b.customer_type);
     safeSetText('det_phone', formatPhone(b.client_phone));
     safeSetText('det_email', b.client_email || "N/A");
-    safeSetText('det_date', formatDateID(t.date));
+    safeSetText('det_date', b.date.split('T')[0]);
     safeSetText('det_time', `${b.start_time.substring(0,5)} - ${b.end_time.substring(0,5)}`);
     safeSetText('det_total', formatIDR(b.total_price));
 
