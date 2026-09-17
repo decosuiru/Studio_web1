@@ -52,7 +52,7 @@
                     <h2 id="section-title">Calendar</h2>
                 </div>
                 <div class="header-right">
-                    <span id="sync-status" class="sync-indicator">🟢 Live Sync On</span>
+                    <span id="sync-status" class="sync-indicator">🟢 Live</span>
                     <button class="primary-btn shadow-btn" onclick="openBookingModal()">+ New</button>
                 </div>
             </header>
@@ -209,11 +209,11 @@
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <h3>Booking Details</h3>
                 <!-- [NEW] Print Button -->
-                <button type="button" class="shadow-btn" style="background: #111827; color: white; padding: 6px 12px; font-size: 12px; margin:0;" onclick="printInvoice()">🖨️ Print Invoice</button>
+                <button type="button" class="shadow-btn" style="background: #111827; color: white; padding: 6px 12px; font-size: 12px; margin:0;" onclick="printInvoice()">🖨️ Print Receipt</button>
             </div>
             
             <div class="detail-grid mt-15">
-                <div><span class="detail-label">Invoice No:</span> <strong id="det_inv_no" style="color: var(--primary-dark);"></strong></div>
+                <div><span class="detail-label">Receipt No:</span> <strong id="det_inv_no" style="color: var(--primary-dark);"></strong></div>
                 <div><span class="detail-label">Status:</span> <span id="det_status" class="status-pill"></span></div>
                 <div><span class="detail-label">Client Name:</span> <strong id="det_name"></strong></div>
                 <div><span class="detail-label">Customer Type:</span> <strong id="det_type"></strong></div>
@@ -298,14 +298,14 @@
             <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #F3F4F6; padding-bottom: 15px; margin-bottom: 15px;">
                 <img src="https://raw.githubusercontent.com/decosuiru/Studio_web1/main/logo/jane%27sblack.png" style="max-height: 40px;">
                 <div style="text-align: right;">
-                    <h1 style="color: #4F46E5; margin: 0; font-size: 24px;">INVOICE</h1>
+                    <h1 style="color: #4F46E5; margin: 0; font-size: 24px;">Receipt</h1>
                     <p style="margin: 5px 0 0 0; font-weight: bold; color: #6B7280; font-size: 12px;" id="print_inv_no"></p>
                 </div>
             </div>
             
             <div style="display: flex; justify-content: space-between; margin-bottom: 25px;">
                 <div>
-                    <p style="color: #6B7280; font-size: 11px; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px;">Billed To:</p>
+                    <p style="color: #6B7280; font-size: 11px; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px;">Booked By:</p>
                     <h3 style="margin: 0 0 3px 0; font-size: 16px;" id="print_name"></h3>
                     <p style="margin: 0; color: #4B5563; font-size: 13px;" id="print_phone"></p>
                     <p style="margin: 0; color: #4B5563; font-size: 13px;" id="print_type"></p>
@@ -352,7 +352,7 @@
             </table>
             
             <div style="text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;">
-                Thank you for choosing Jane's Studio!
+                Thank you for choosing Jane's Home Studio
             </div>
         </div>
     </div>
